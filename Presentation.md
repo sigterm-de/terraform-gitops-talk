@@ -80,7 +80,7 @@ _Related_: Highly recommend talk "Terraform: from zero to madness" by [@Timur Bu
 
 - oh well, you need a staging environment
 - both environments are very much the same
-- you transform the code into a module with variables
+- you refactor the code to be parameterised by variables
 - you provide 2 `.tfvars` files
 
 [.column]
@@ -161,7 +161,7 @@ module "rds" {
 **:point_right: At this point in time I joined the project :point_left:**
 
 [.column]
-**the situation**
+**The situation**
 
 - as the stack grows further, the amount of resources does as well
 - each run of `terraform plan -out plan` takes more and more time
@@ -171,7 +171,7 @@ module "rds" {
 - you notice that git tags can not be used for semantic versioning (`version`)
 
 [.column]
-**possible solutions**
+**Possible solutions**
 
 - to address the versioning and data transfer issues - use a private Terraform module registry
 - to address the runtime and ownership issue - split the stacks and let the teams handle them (DevOps style)
@@ -179,7 +179,7 @@ module "rds" {
 ---
 ## (1.2) The boring-registry 
 
-- At TIER Mobility we developed our own "boring" Terraform registry without moving parts (hence the name)
+- TIER Mobility developed their own "boring" Terraform registry without moving parts (hence the name)
   - Details to be found here: https://github.com/boring-registry/boring-registry/
   - The important feature for now is support for the [Module Registry Protocol](https://developer.hashicorp.com/terraform/internals/module-registry-protocol)
 - **You provide** a S3 bucket, module code and package it in CD via
@@ -401,6 +401,8 @@ To give some numbers: my client [LYNQTECH](https://www.lynq.tech/) runs ~100 mic
 ## FluxCD as an App of Apps system
 
 [.column]
+[.code-highlight: 2-8]
+[.code-highlight: 17-19]
 ```text
 .
 ├── environments
@@ -618,6 +620,7 @@ module "database" {
 - remember: division of concerns - cloud and runtime
 - Terraform stack writes structured data as JSON
 - Runtime pulls in data via External Secrets Operator[^16]
+- Reloader watches and upgrades Pods with their associated data
 
 ```
 module "ssm_service_data" {
@@ -676,8 +679,8 @@ metadata:
 
 [.column]
 - each stack has its own `tf-runner` pod
-  - **Decision**: no persistent pods between runs
-- Example: `terraform-provider-aws_5.31.0_darwin_arm64.zip` = 84MB
+  - **Decision**: no persistent pods between runs for security reasons (permissions of SA)
+- Sizing example: `terraform-provider-aws_5.31.0_darwin_arm64.zip` = 84MB
 - NAT costs _(AWS specific issue; GCP lowered egress costs to $0 recently)_
   - reconcile every 30'
   - `terraform init` for each execution
@@ -685,7 +688,7 @@ metadata:
 
 [.column]
 - **boring-registry** to the rescue
-  - [caching proxy](https://github.com/boring-registry/boring-registry/#provider-network-mirror)
+  - [caching, pull-through proxy](https://github.com/boring-registry/boring-registry/#provider-network-mirror)
   - Provider Network Mirror Protocol
 - provider stored and delivered as S3 objects
 - :wink: use S3 VPC endpoints
@@ -825,6 +828,7 @@ spec:
 [.column]
 - [LYNQTECH GmbH](https://www.lynq.tech/) for granting permission to share information and code
 - all colleagues who were and are part of this journey
+- The FluxCD Community and WeaveWorks for their software
 
 [.column]
 ![inline](assets/qr-linkedin.png) ![inline](assets/qr-sigterm.png)
@@ -837,11 +841,11 @@ spec:
 **General FluxCD**
 
 - Each tenant environment must be configurable individually
-- For audit reasons, production envs must use fixed service versions
+  - For audit reasons, production envs must use fixed service versions
 - Applications, in the central repo, must be DRY. No inidividual stacks.
 - Use of OCI-based registries for sources only (exception: external Helm)
 - Code is agnostic of environments and is not parameterised
-  - Each **AWS/Kubernetes environment** allows a stack to become concious
+  - Each **cloud (AWS)** and **runtime (Kubernetes) environment** allows a stack to become concious
   - kustomize style data baked into artifact
 - Secrets synchronised via External-Secret Operator
 - Kubernetes cluster should be treated as cattle
@@ -850,14 +854,16 @@ spec:
 **TF-Controller**
 
 - No vendor lock-in; re-usability of eco-system strong plus
+  - Terraform providers
+  - Terraform OSS modules
 - No persistent pods between runs
-- Auto approval for Terraform changes
+- Aim for Auto approval for Terraform changes
   - no destroy/recreate
   - no direct IAM resources (only via controlled modules)
   - only approved top-level module sources
 
 ---
-# (5.0) Tech stack at Lynqtech GmbH
+# (5.0) Tech stack Lynqtech GmbH
 
 [.column]
 **Developer Control plane**
@@ -928,7 +934,7 @@ spec:
 
 [^15]: Introducing the BACK Stack! - https://www.youtube.com/watch?v=SMlR12uwMLs
 
-[^16]: https://external-secrets.io/latest/
+[^16]: [https://external-secrets.io/](https://external-secrets.io/latest/), [stakater/Reloader](https://github.com/stakater/Reloader)
 
 [^17]: [Weave Policy Engine](https://docs.gitops.weave.works/docs/policy/intro/), [Integrate TF Controller with Flux Receivers and Alerts](https://weaveworks.github.io/tf-controller/use-tf-controller/flux-receiver-and-alert/), [Open Policy Agent](https://www.openpolicyagent.org/)
 
