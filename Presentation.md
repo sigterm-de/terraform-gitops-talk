@@ -2,14 +2,14 @@ theme: next,9
 slide-transition: push(vertical)
 autoscale: true
 
-[.footer: Daniel Ciaglia \<daniel@sigterm.de\>]
+[.footer: 2024-01-16 // Daniel Ciaglia \<daniel@sigterm.de\>]
 
 # Lessons learned from running Terraform at reasonable scale
 
 > Why easy, when we can make it complicated?
 > -- the unknown platform engineer
 
-Utilizing FluxCD, Weaveworks TF-Controller and boring-registry at https://www.lynq.tech/
+Utilizing FluxCD, Weaveworks TF-Controller and boring-registry at [LYNQTECH](https://www.lynq.tech/)
 
 ---
 
@@ -827,7 +827,7 @@ spec:
   - knowledge and modules
 
 ---
-[.footer: Lessons learned from running Terraform at reasonable scale // Daniel Ciaglia \<daniel@sigterm.de\>]
+[.footer: 2024-01-16 // Lessons learned from running Terraform at reasonable scale // Daniel Ciaglia \<daniel@sigterm.de\>]
 
 ## (3.4) Thanksides
 
