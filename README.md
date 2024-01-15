@@ -1,14 +1,14 @@
 # terraform-gitops-talk
 
-A talk about running Terraform at reasonable scale in GitOps at [LYNQTECH GmbH](https://www.lynq.tech/)
+A talk about running Terraform at reasonable scale in GitOps fashion at [LYNQTECH GmbH](https://www.lynq.tech/)
 
 # Presentation
-Use [Deckset](https://www.deckset.com/) for running the `presentation.md`
+Use [Deckset](https://www.deckset.com/) for running the `Presentation.md`
 
 # Licence
 
 ## The presentation
-[CC BY-SA 4.0 ](https://creativecommons.org/licenses/by-sa/4.0/)
+[Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)
 
 ## The code
-MIT, see licence inside the modules
+[MIT](https://opensource.org/license/mit/), see licence inside the modules

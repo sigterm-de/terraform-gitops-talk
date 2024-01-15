@@ -235,7 +235,7 @@ Code for 3 Terraform modules will be provided
   read SSM parameter with regex 
 
 ---
-## (1.3.2) Write data (basic system)
+## (1.3.2) Write data (base system)
 
 [.code-highlight: 5-6, 8-20]
 ```
@@ -373,7 +373,7 @@ To give some numbers: my client [LYNQTECH](https://www.lynq.tech/) runs ~100 mic
 
 ---
 
-## (2.1.2) Weaveworks TF Controller[^9]
+## (2.1.2) Weaveworks TF Controller[^9] [^18]
 
 ![inline](assets/tf-controller-basic-architecture.png)
 
@@ -398,6 +398,8 @@ To give some numbers: my client [LYNQTECH](https://www.lynq.tech/) runs ~100 mic
   - `flux push artifact`[^12] is your friend
 
 ---
+## FluxCD as an App of Apps system
+
 [.column]
 ```text
 .
@@ -427,9 +429,10 @@ To give some numbers: my client [LYNQTECH](https://www.lynq.tech/) runs ~100 mic
 │      └── weaveworks-gitops
 ```
 [.column]
+_from the perspective of an individual FluxCD installation_
 
-FluxCD as an App of Apps system - from the perspective of an individual FluxCD installation
-
+- (0) - cloud and runtime is set up
+  - provide data for stacks to become conscious  
 - (1) - load environment
   - primary Flux app
   - references all secondary service Flux apps
@@ -438,6 +441,14 @@ FluxCD as an App of Apps system - from the perspective of an individual FluxCD i
   - contains relevant manifests
   - eg. OCI Sources, Terraform, Kustomization
 - (3) - apply individual service apps 
+
+---
+### Primary Flux app
+![inline](assets/wego-primary-app.png)
+
+---
+### Secondary Flux app
+![inline](assets/wego-secondary-app.png)
 
 ---
 ## (2.3.1) Post build variable substitution[^10]
@@ -879,6 +890,13 @@ spec:
 - AWS as cloud provider
 - EKS as runtime environment
 
+---
+**Image sources**
+
+1. FluxCD documentation - https://fluxcd.io/flux/components/
+2. Weave GitOps // Terraform Controller documentation - https://weaveworks.github.io/tf-controller/
+3. Weave GitOps // The Policy Ecosystem - https://docs.gitops.weave.works/docs/policy/getting-started/
+
 <!-- Footnotes -->
 [^1]: YMMV
 
@@ -913,3 +931,5 @@ spec:
 [^16]: https://external-secrets.io/latest/
 
 [^17]: [Weave Policy Engine](https://docs.gitops.weave.works/docs/policy/intro/), [Integrate TF Controller with Flux Receivers and Alerts](https://weaveworks.github.io/tf-controller/use-tf-controller/flux-receiver-and-alert/), [Open Policy Agent](https://www.openpolicyagent.org/)
+
+[^18]: _**Please note**: As the tf-runner ServiceAccount is usually very powerful, do not run it in an accessible namespace!_

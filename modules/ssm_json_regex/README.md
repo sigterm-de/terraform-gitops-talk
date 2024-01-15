@@ -1,6 +1,6 @@
 # ssm_json_regex
 
-Read all JSON information from the parameter store under path `/<path>/<system>`
+Read all JSON information from the parameter store under path `/<path>/<name>`
 
 Based on https://stackoverflow.com/questions/73044446/terraform-copy-aws-ssm-parameters
 
@@ -16,8 +16,8 @@ module "global_service_inventory" {
 
   path = "/service-inventory"
   # name = "foo"  -> "/${path}/${name}"
-  # include_filter_regex = "(/configuration/base|/configuration/devops-.*)" -> all parameters below "/${path}/${name}" will be filtered on "== regex(${filter[x]})"
-  # exclude_filter_regex = "(/configuration/base|/configuration/devops-.*)" -> all parameters below "/${path}/${name}" will be filtered on "!= regex(${filter[x]})"
+  # include_filter_regex = "(base|/configuration/devops-.*)" -> all parameters below "/${path}/${name}" will be filtered on "== regex(${filter[x]})"
+  # exclude_filter_regex = "(base|/configuration/devops-.*)" -> all parameters below "/${path}/${name}" will be filtered on "!= regex(${filter[x]})"
 }
 ```
 

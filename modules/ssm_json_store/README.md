@@ -41,7 +41,7 @@ module "read_json_ssm" {
 
 | Name | Version |
 |------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.0.0 |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.3.0 |
 | <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 4.0 |
 
 ## Providers
@@ -68,7 +68,7 @@ No modules.
 | <a name="input_data"></a> [data](#input\_data) | Map to be passed in as the SSM parameter value // will be stored as JSON in SSM | `any` | `{}` | no |
 | <a name="input_data_base64_encode"></a> [data\_base64\_encode](#input\_data\_base64\_encode) | Should BASE64 be used to store/read data from SSM parameter? Not supported in combination with External Secrets Operator | `bool` | `false` | no |
 | <a name="input_name"></a> [name](#input\_name) | The name of the parameter // /<path>/<name> | `string` | n/a | yes |
-| <a name="input_overwrite"></a> [overwrite](#input\_overwrite) | Set the overwrite flag for exisiting parameters. Obsolete and a bit unclear for the future, see also: https://github.com/hashicorp/terraform-provider-aws/issues/25636 | `bool` | `false` | no |
+| <a name="input_overwrite"></a> [overwrite](#input\_overwrite) | Set the overwrite flag for existing parameters. Obsolete and a bit unclear for the future, see also: https://github.com/hashicorp/terraform-provider-aws/issues/25636 | `bool` | `true` | no |
 | <a name="input_path"></a> [path](#input\_path) | The path to store the parameter in // /<path>/<name> | `string` | n/a | yes |
 | <a name="input_tags"></a> [tags](#input\_tags) | add. tags for resources | `map(string)` | `{}` | no |
 

@@ -26,7 +26,7 @@ variable "data_base64_encode" {
 }
 
 variable "overwrite" {
-  description = "Set the overwrite flag for exisiting parameters. Obsolete and a bit unclear for the future, see also: https://github.com/hashicorp/terraform-provider-aws/issues/25636"
+  description = "Set the overwrite flag for existing parameters. Obsolete and a bit unclear for the future, see also: https://github.com/hashicorp/terraform-provider-aws/issues/25636"
   type        = bool
-  default     = false
+  default     = true
 }
