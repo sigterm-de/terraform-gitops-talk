@@ -4,7 +4,7 @@ A talk about running Terraform at reasonable scale in GitOps fashion at [LYNQTEC
 utilizing [FluxCD](https://fluxcd.io/), [Weave GitOps TF-Controller](https://weaveworks.github.io/tf-controller/) and [boring-registry](https://github.com/boring-registry/boring-registry)
 
 ## Presentation
-Use [Deckset](https://www.deckset.com/) for running [Presentation.md](Presentation.md) or just read it here.
+Use [Deckset](https://www.deckset.com/) for running [Presentation.md](Presentation.md), just read it here or use the [Presentation.pdf](Presentation.pdf) .
 
 ## Licences
 
