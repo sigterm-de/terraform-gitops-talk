@@ -38,15 +38,14 @@ Utilizing FluxCD, Weaveworks TF-Controller and boring-registry at https://www.ly
 
 # Today's menu
 
-1. A typical[^1] Terraform stack evolution
+1. A typical Terraform stack evolution
 2. Running Terraform in GitOps
 3. Thoughts on the stack
 4. Architectural Decision Records summary
-5. Tech stack used
 
 ---
 
-# (1.1) Typical Terraform stack evolution
+# (1.1) Typical Terraform stack evolution[^1]
 
 _Stack: Terraform root module[^2], tracked with 1 state file_
 
@@ -185,12 +184,14 @@ module "rds" {
 - **You provide** a S3 bucket, module code and package it in CD via
   `./boring-registry upload --type s3 (some more flags) ./your-module`
 - **You'll get**
-  ```
-  module "rds" {
-    source = "registry.example.com/acme/rds/aws"
-    version = "~> 0.1"
-  }
-  ```
+  semantic versioning
+
+```
+module "rds" {
+  source = "registry.example.com/acme/rds/aws"
+  version = "~> 0.1"
+}
+```
 
 ---
 ## (1.3) Separating the service stacks
@@ -204,6 +205,7 @@ module "rds" {
   :arrow_right: teams and responsibilities change, always  
 - share states between services
   :arrow_right: there are secrets in there![^6]
+  :arrow_right: read the docs of the [`terraform_remote_state`](https://developer.hashicorp.com/terraform/language/state/remote-state-data) data source!
 
 [.column]
 **Do**
@@ -458,7 +460,7 @@ _from the perspective of an individual FluxCD installation_
 [.column]
 - FluxCD's unique possibility to replace variables in rendered manifests before apply 
 - in FluxCD repo
-  - environment specific `_versions.yaml` becomes `service-versions` ConfigMap`
+  - environment specific `_versions.yaml` becomes `service-versions` ConfigMap
   - satisfies the "fixed versions" requirement
 - In underlying IaC - basic environment information for a TF stack are written
   - `base` ConfigMap provides `client`, `environment` and other data
@@ -613,7 +615,9 @@ module "database" {
   # [...]
 }
 ```
+
 ---
+
 ## (2.4.3) Connecting Cloud and Runtime
 
 [.column]
@@ -646,6 +650,7 @@ module "ssm_service_data" {
 ```
 
 [.column]
+
 ```yaml
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
@@ -687,7 +692,7 @@ metadata:
   - 100 stacks * 48 runs/day * ~100MB providers * $0,052/GB = **480GB/$24,96 day/environment**
 
 [.column]
-- **boring-registry** to the rescue
+- **boring-registry** to the rescue :tada:
   - [caching, pull-through proxy](https://github.com/boring-registry/boring-registry/#provider-network-mirror)
   - Provider Network Mirror Protocol
 - provider stored and delivered as S3 objects
@@ -732,7 +737,7 @@ spec:
 ## (2.6) Weave Policy Engine[^17]
 
 [.column]
-- based on Rego and similar to OPA
+- based on Rego and similar to Open Policy Agent
 - **Goal**: auto approve Terraform changes
   - **Decision**: no destroy/recreate
   - **Decision**: no direct IAM resources (only via controlled modules)
@@ -759,6 +764,7 @@ spec:
   - in principle ready for OpenTofu[^13]
   - the talk uses features from a pre-release[^14]
 - observability is not ideal
+  - eg. finding all Terraform Manifests, which have a pending plan
 
 [.column]
 **Be honest, where are you in the project?**
@@ -766,7 +772,7 @@ spec:
 - In the middle of cutting the large TF stacks
   - :point_right: very useful tool: [minamijoyo/tfmigrate](https://github.com/minamijoyo/tfmigrate)
 - Automatic approvals are yet to come
-- [Branch Planner](https://weaveworks.github.io/tf-controller/branch-planner/) needs to be implemented to enable developer ownership
+- [Branch Planner](https://weaveworks.github.io/tf-controller/branch-planner/) needs to be implemented to enable full developer ownership
 - after IaC migration, services move to FluxCD as well
 
 ---
@@ -794,7 +800,7 @@ spec:
 
 - development and local testing of TF code is hard
   - possibly via Branch Planner
-  - _only for Github_
+  - _only for Github sources_
 - Terraform module registry - so batteries included for developers?
   yes, kind of, but
   - Terraform understanding needed
@@ -827,7 +833,9 @@ spec:
 
 [.column]
 - [LYNQTECH GmbH](https://www.lynq.tech/) for granting permission to share information and code
-- all colleagues who were and are part of this journey
+  - :wink: LYNQTECH is hiring
+    https://www.lynq.tech/jobs/
+- All colleagues who were and are part of this journey
 - The FluxCD Community and WeaveWorks for their software
 
 [.column]
@@ -863,40 +871,6 @@ spec:
   - only approved top-level module sources
 
 ---
-# (5.0) Tech stack Lynqtech GmbH
-
-[.column]
-**Developer Control plane**
-
-- Terraform _(1.5.7; last open source version)_ as IaC tooling
-- Github for version control
-- mostly Golang
-
-**Integration and Delivery Plane**
-
-- DroneCD and Jenkins for CI/CD
-  - yes, services will be moved over to FluxCD as well
-- FluxCD and Weaveworks tooling for IaC
-- ECR as image registry
-
-**Monitoring & Logging Plane**
-
-- Dynatrace as Observability platform
-
-[.column]
-**Security Plane**
-
-- MS Azure/MS Entra ID
-  - as IdP for Authn|Authz
-- AWS Secrets Manager
-- Weave Policy Agent, kubeconform, ECR scanning
-
-**Resource Plane**
-
-- AWS as cloud provider
-- EKS as runtime environment
-
----
 **Image sources**
 
 1. FluxCD documentation - https://fluxcd.io/flux/components/
@@ -904,7 +878,7 @@ spec:
 3. Weave GitOps // The Policy Ecosystem - https://docs.gitops.weave.works/docs/policy/getting-started/
 
 <!-- Footnotes -->
-[^1]: YMMV
+[^1]: your experience might be different :smile:
 
 [^2]: https://developer.hashicorp.com/terraform/language/files#the-root-module
 
