@@ -699,6 +699,22 @@ metadata:
 - :wink: use S3 VPC endpoints
 
 ---
+### `.terraformrc`
+
+```
+credentials "my.terraform-registry.foo.bar" {
+  token = "7H151553CUr3!" # we are 1337
+}
+
+provider_installation {
+  network_mirror {
+    url = "https://my.terraform-registry.foo.bar/v1/mirror/"
+    include = ["*/*"]
+  }
+}
+```
+
+---
 ### (2.5.2) Kubernetes resources
 
 [.column]
