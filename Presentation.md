@@ -371,6 +371,17 @@ To give some numbers: my client [LYNQTECH](https://www.lynq.tech/) runs ~100 mic
 ---
 
 ## (2.1.1) FluxCD primer[^8]
+
+[.column]
+### What is GitOps?
+> GitOps is an operational framework that takes DevOps best practices used for application development such as version control, collaboration, compliance, and CI/CD, and applies them to infrastructure automation.
+> -- https://about.gitlab.com/topics/gitops/
+
+- In our context - **pull vs. push principle**
+  - You don't care in _which environment_ a stack runs in
+  - They are ready for your stack and your code is pulled in (vs. pushed via a pipeline)
+
+[.column]
 ![inline](assets/flux_gitops-toolkit.png)
 
 ---
