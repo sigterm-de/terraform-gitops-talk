@@ -1,2 +1,7 @@
 .idea
 .DS_Store
+# Terraform stuff
+.terraform
+**/plan
+.terraform.lock.hcl
+terraform.tfstate*
