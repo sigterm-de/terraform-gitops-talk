@@ -7,10 +7,6 @@ resource "aws_ssm_parameter" "mod" {
   type        = "SecureString"
   value       = var.data_base64_encode ? base64encode(jsonencode(var.data)) : jsonencode(var.data)
   tier        = local.tier
-
-  # obsolete parameter but somehow unclear how this is intended to work
-  # https://github.com/hashicorp/terraform-provider-aws/issues/25636
-  overwrite = var.overwrite
 }
 
 data "aws_ssm_parameter" "mod" {

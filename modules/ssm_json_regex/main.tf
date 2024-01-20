@@ -31,8 +31,8 @@ data "aws_ssm_parameter" "param" {
 
 ## also leave a `.lock` entry at read
 resource "aws_ssm_parameter" "lock" {
-  for_each = var.lock.enabled ? local.filtered_paths : toset([])
-  name     = "${each.key}/${var.lock.service}.lock"
+  for_each = var.lock != null ? local.filtered_paths : toset([])
+  name     = "${each.key}/${var.lock}.lock"
   type     = "String"
   value    = "true"
   overwrite = true

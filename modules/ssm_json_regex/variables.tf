@@ -20,17 +20,7 @@ variable "exclude_filter_regex" {
 }
 
 variable "lock" {
-  description = "Leave a `.lock` and document consumption of the data"
-  type = object({
-    enabled = bool
-    service = string
-  })
-  default = {
-    enabled = false
-    service = null
-  }
-  validation {
-    condition = var.lock.enabled == true ? length(var.lock.service) != null : true
-    error_message = "The lock service must be set."
-  }
+  description = "Leave a `.lock` and document consumption of the data // should be the name of the consuming stack"
+  type = string
+  default = null
 }
