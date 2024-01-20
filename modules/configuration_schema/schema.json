@@ -1,0 +1,20 @@
+{
+  "$id": "https://example.com/configuration.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Configuration data object",
+  "type": "object",
+  "properties": {
+    "installed" : {
+      "type": "boolean"
+    },
+    "private": {
+      "type": "object",
+      "properties": {}
+    },
+    "public": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  "required": ["installed", "private", "public"]
+}
