@@ -20,7 +20,7 @@ variable "exclude_filter_regex" {
 }
 
 variable "lock" {
-  description = "Leave a `.lock` and document consumption of the data // should be the name of the consuming stack"
-  type = string
-  default = null
+  description = "Soft data contract - leave a `.lock` at the read parameters and document consumption of the data // should be the name of the consuming stack"
+  type        = string
+  default     = null
 }
