@@ -3,9 +3,17 @@
 Validate your data against a versioned JSON schema 
 
 ## License
-Courtesy of Daniel Ciaglia, licensed under the [MIT license](https://opensource.org/license/mit/)
+Courtesy of Daniel Ciaglia <daniel@sigterm.de>, licensed under the [MIT license](https://opensource.org/license/mit/)
 
 ## Usage
+
+### The JSON Schema
+
+Please check [schema.json](schema.json) and [schema.json.md](schema.json.md) for an example definition.
+
+More details on JSON Schema over here: [https://json-schema.org/](https://json-schema.org/) 
+
+### Validation in action
 
 ```terraform
 module "validated_data" {
@@ -14,8 +22,23 @@ module "validated_data" {
 
   data = {
     installed = true
-    private   = {}
-    public    = {}
+    private = {
+      kubernetes = {
+        role_arn        = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+        service_account = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+      }
+      database = {
+        foo = {
+          name            = "module.database.database_name"
+          username        = "module.database.database_username"
+          secret_key      = "module.database.secret_key"
+          endpoint        = "module.database.endpoint"
+          reader_endpoint = "module.database.reader_endpoint"
+          port            = 5432
+        }
+      }
+    }
+    public = {}
   }
 }
 
