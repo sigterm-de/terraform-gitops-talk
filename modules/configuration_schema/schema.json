@@ -1,5 +1,5 @@
 {
-  "$id": "https://example.com/configuration.schema.json",
+  "$id": "https://raw.githubusercontent.com/sigterm-de/terraform-gitops-talk/main/modules/configuration_schema/schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Configuration data object",
   "type": "object",

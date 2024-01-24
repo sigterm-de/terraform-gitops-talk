@@ -1,7 +1,7 @@
 locals {
   service   = "downstream"
-  ssm_path  = "rulxqjewon9z4z9ytmph6jbv"
-  s3_bucket = "rulxqjewon9z4z9ytmph6jbv"
+  ssm_path  = "<the output of upstream>"
+  s3_bucket = "<the output of upstream>"
   s3_prefix = "configuration"
 }
 
@@ -9,7 +9,7 @@ module "test" {
   source = "../../ssm_json_regex"
 
   path                 = "/${local.ssm_path}/"
-  include_filter_regex = "(foo.v1)"
+  include_filter_regex = "(foo_v1)"
 
   lock = local.service
 }
@@ -25,7 +25,7 @@ module "test_s3" {
 
   bucket               = local.s3_bucket
   path                 = local.s3_prefix
-  include_filter_regex = "(foo.v1|bar)"
+  include_filter_regex = "(foo_v1|bar)"
 
   lock = local.service
 }

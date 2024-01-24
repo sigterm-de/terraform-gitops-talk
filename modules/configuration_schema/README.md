@@ -9,7 +9,7 @@ Courtesy of Daniel Ciaglia <daniel@sigterm.de>, licensed under the [MIT license]
 
 ### The JSON Schema
 
-Please check [schema.json](schema.json) and [schema.json.md](schema.json.md) for an example definition.
+Please check [schema.json](schema.json) for an example definition.
 
 More details on JSON Schema over here: [https://json-schema.org/](https://json-schema.org/) 
 
