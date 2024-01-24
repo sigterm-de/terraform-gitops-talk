@@ -11,6 +11,6 @@ output "all_paths_found" {
   value       = local.names
 }
 output "filtered_paths" {
-  description = "A list off all SSM parameters found applying filters (debugging)."
+  description = "A list of all SSM parameters found applying filters (debugging)."
   value       = local.filtered_paths
 }

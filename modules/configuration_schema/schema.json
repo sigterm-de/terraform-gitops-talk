@@ -1,0 +1,86 @@
+{
+  "$id": "https://raw.githubusercontent.com/sigterm-de/terraform-gitops-talk/main/modules/configuration_schema/schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Configuration data object",
+  "type": "object",
+  "properties": {
+    "installed": {
+      "type": "boolean"
+    },
+    "private": {
+      "type": "object",
+      "properties": {
+        "database" : {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/database"
+          }
+        }
+      }
+    },
+    "public": {
+      "type": "object",
+      "properties": {
+        "sns": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/name_arn_url"
+          }
+        },
+        "sqs": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/name_arn_url"
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "installed",
+    "private",
+    "public"
+  ],
+  "$defs": {
+    "name_arn_url": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "arn": {
+          "type": "string"
+        }
+      },
+      "required": ["name", "arn", "url"]
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        },
+        "secret_key": {
+          "type": "string"
+        },
+        "endpoint": {
+          "type": "string"
+        },
+        "reader_endpoint": {
+          "type": "string"
+        },
+        "port": {
+          "type": "number"
+        }
+      },
+      "required": ["name", "username", "endpoint", "port", "secret_key"]
+    }
+  }
+}

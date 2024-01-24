@@ -18,3 +18,9 @@ variable "exclude_filter_regex" {
   type        = string
   default     = null
 }
+
+variable "lock" {
+  description = "Soft data contract - leave a `.lock` at the read parameters and document consumption of the data // should be the name of the consuming stack"
+  type        = string
+  default     = null
+}
