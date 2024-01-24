@@ -11,7 +11,7 @@ Courtesy of LYNQTECH GmbH, licensed under the [MIT license](https://opensource.o
 ```terraform
 module "create_json_ssm" {
   source  = "registry.example.com/foo/ssm_json_store/aws"
-  version = "~> 0.1"
+  version = "~> 0.1.0"
 
   path    = "/configuration/dev_blue"
   name    = "foo"
@@ -29,7 +29,7 @@ module "create_json_ssm" {
 ```terraform
 module "read_json_ssm" {
   source  = "registry.example.com/foo/ssm_json_store/aws"
-  version = "~> 0.1"
+  version = "~> 0.1.0"
 
   path    = "/configuration/dev_blue"
   name    = "foo"

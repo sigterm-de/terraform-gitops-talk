@@ -1,40 +1,26 @@
-# s3_json_store
+# s3_json_regex
 
-CRUD JSON information in S3.
+Read all JSON information from the S3 bucket under path `/<path>/<name>`
+
+Based on the `ssm_json_regex` modules
 
 ## License
-Courtesy of LYNQTECH GmbH, licensed under the [MIT license](https://opensource.org/license/mit/)
+Courtesy of Daniel Ciaglia <daniel@sigterm.de>, licensed under the [MIT license](https://opensource.org/license/mit/)
 
 ## Usage
 
-### Create data in `/<path>/<name>`
 ```terraform
-module "create_json_s3" {
-  source  = "registry.example.com/foo/s3_json_store/aws"
-  version = "~> 0.1"
+module "global_service_inventory" {
+  source  = "registry.example.com/foo/s3_json_regex/aws"
+  version = "~> 0.1.0"
 
-  bucket = aws_s3_bucket.this.id
-  path   = "/configuration/"
-  name   = "/foo/bar.json"
-
-  data = {
-    this = {
-      is = {
-        content = true
-      }
-    }
-  }
-}
-```
-### Read data from `/<path>/<name>`
-```terraform
-module "read_json_s3" {
-  source  = "registry.example.com/foo/s3_json_store/aws"
-  version = "~> 0.1"
-
-  bucket = aws_s3_bucket.this.id
-  path   = "/configuration/"
-  name   = "/foo/bar.json"
+  path = "/service-inventory"
+  # name = "foo"  -> "/${path}/${name}"
+  # include_filter_regex = "(base|/configuration/devops-.*)" -> all parameters below "/${path}/${name}" will be filtered on "== regex(${filter[x]})"
+  # exclude_filter_regex = "(base|/configuration/devops-.*)" -> all parameters below "/${path}/${name}" will be filtered on "!= regex(${filter[x]})"
+  
+  # Soft data contract - leave a `.lock` at the read objects and document consumption of the data
+  lock = "this.service"
 }
 ```
 

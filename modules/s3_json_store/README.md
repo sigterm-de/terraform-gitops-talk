@@ -11,7 +11,7 @@ Courtesy of LYNQTECH GmbH, licensed under the [MIT license](https://opensource.o
 ```terraform
 module "create_json_s3" {
   source  = "registry.example.com/foo/s3_json_store/aws"
-  version = "~> 0.1"
+  version = "~> 0.1.0"
 
   bucket = aws_s3_bucket.this.id
   path   = "/configuration/"
@@ -30,7 +30,7 @@ module "create_json_s3" {
 ```terraform
 module "read_json_s3" {
   source  = "registry.example.com/foo/s3_json_store/aws"
-  version = "~> 0.1"
+  version = "~> 0.1.0"
 
   bucket = aws_s3_bucket.this.id
   path   = "/configuration/"

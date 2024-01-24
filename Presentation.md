@@ -348,6 +348,13 @@ module "sns_sqs_subscription_foo" {
   - for accessing resources
 
 ---
+[.background-color: #edfced]
+[.footer: \o/ \o/ \o/ new content - post to be found here: https://www.sigterm.de/2024/01/24/data-contract-for-terraform-stacks/]
+## (1.3.6) Soft data contract between stacks
+
+![inline](assets/soft_contract.png)
+
+---
 # What's "reasonable scale", btw?
 
 [.column]
@@ -360,7 +367,8 @@ module "sns_sqs_subscription_foo" {
 
 __`total stacks = stacks * environments * tenants`__
 
-To give some numbers: my client [LYNQTECH](https://www.lynq.tech/) runs ~100 microservices in at least 2 environments per tenant for 5+ tenants - north of 1000 stacks :wink:  
+To give some numbers: my client [LYNQTECH](https://www.lynq.tech/) runs ~100 microservices in at least 2 environments per tenant
+for 5+ tenants - north of 1000 stacks :wink:  
 
 [.column]
 ![inline](assets/multi-dimensions.png)
