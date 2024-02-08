@@ -795,7 +795,7 @@ spec:
 
 [.column]
 - tf-controller is sometimes uncertain about the state
-- slow development of tf-controller, thank you HashiCorp
+- slow development of tf-controller, ~~thank you HashiCorp~~
   - in principle ready for OpenTofu[^13]
   - the talk uses features from a pre-release[^14]
 - observability is not ideal
@@ -844,6 +844,14 @@ spec:
 - TF-Controller: (un)interruptable pods needed (for writing states)
 - missing UI (for TF-Controller) and Monitoring APIs
 - implicit data contracts between Terraform stacks
+
+---
+[.background-color: #edfced]
+## (3.2.1) - An uncertain future
+
+![inline](assets/weaveworks_shutting_down.png)
+
+[.footer: 2024-02-06 - https://www.linkedin.com/feed/update/urn:li:activity:7160295096825860096/]
 
 ---
 ## (3.3) Upsides
