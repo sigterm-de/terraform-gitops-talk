@@ -349,7 +349,7 @@ module "sns_sqs_subscription_foo" {
 
 ---
 [.background-color: #edfced]
-[.footer: \o/ \o/ \o/ new content - post to be found here: https://www.sigterm.de/2024/01/24/data-contract-for-terraform-stacks/]
+[.footer: Post to be found here: https://www.sigterm.de/2024/01/24/data-contract-for-terraform-stacks/]
 ## (1.3.6) Soft data contract between stacks
 
 ![inline](assets/soft_contract.png)
