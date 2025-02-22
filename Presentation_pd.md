@@ -1,33 +1,37 @@
 ---
 title: Lessons learned from running Terraform at reasonable scale
+author: Daniel Ciaglia
 theme: solarized
 revealjs-url: https://unpkg.com/reveal.js/
+header-includes:
+  - '<script src="https://cdn.jsdelivr.net/npm/reveal.js-mermaid-plugin/plugin/mermaid/mermaid.js"></script>'
+  - '<script>Reveal.initialize({plugins: [ RevealMermaid ], width: 1920, height: 1080});</script>'
 ---
+
+## Utilizing FluxCD, Weaveworks TF-Controller and boring-registry
 
 > Why easy, when we can make it complicated?
 > -- the unknown platform engineer
 
-Utilizing FluxCD, Weaveworks TF-Controller and boring-registry at [LYNQTECH](https://www.lynq.tech/)
-
-# Daniel Ciaglia // _Consultant_ { .r-fit-text }
+# Daniel Ciaglia // _Consultant_
 
 :::::: {.columns}
-::: {.column width="50%"}
+::: {.column width="60%"}
 
-- **Freelance**
+- **Freelance** \
   _since 2022_
-- **TIER Mobility SE**
+- **TIER Mobility SE** \
   _Director of Engineering_ 
-- **kreuzwerker GmbH**
+- **kreuzwerker GmbH** \
   _Principal Consultant_
-- **Bundesdruckerei GmbH**
+- **Bundesdruckerei GmbH** \
   _Senior Support Manager_
 - _[**some more**]_
 - SCUBA dive instructor
-- **AWS User Group Berlin**
+- **AWS User Group Berlin** \
   co-organiser
 :::
-::: {.column width=50%}
+::: {.column width=40%}
 
 ![](assets/qr-linkedin.png){width=50%}
 
@@ -70,6 +74,20 @@ _Related_: Highly recommend talk "Terraform: from zero to madness" by [@Timur Bu
 ```
 :::
 ::::::
+
+# Tests
+Some revealjs plugin tests
+
+## Mermaid
+
+```mermaid
+flowchart TD
+  A[Start] --> B{Is it?};
+  B -- Yes --> C[OK];
+  C --> D[Rethink];
+  D --> B;
+  B -- No ----> E[End];
+```
 
 # Sources + Links
 

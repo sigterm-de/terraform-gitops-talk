@@ -1,2 +1,9 @@
+SOURCE=Presentation_pd
+
 build:
-	pandoc -t revealjs --slide-level 2 --standalone -o Presentation_pd.html Presentation_pd.md
+	pandoc -o ${SOURCE}.html ${SOURCE}.md \
+		-t revealjs \
+		--slide-level 2 --standalone \
+		--lua-filter=filters.lua \
+		-V maxScale=1.1 \
+		-V css=assets/custom.css
