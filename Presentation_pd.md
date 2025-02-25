@@ -2,10 +2,8 @@
 title: Lessons learned from running Terraform at reasonable scale
 author: Daniel Ciaglia
 theme: solarized
-revealjs-url: https://unpkg.com/reveal.js/
 header-includes:
-  - '<script src="https://cdn.jsdelivr.net/npm/reveal.js-mermaid-plugin/plugin/mermaid/mermaid.js"></script>'
-  - '<script>Reveal.initialize({plugins: [ RevealMermaid ], width: 1920, height: 1080});</script>'
+  - '<script src="https://cdn.jsdelivr.net/npm/reveal.js-mermaid-plugin@11/plugin/mermaid/mermaid.js"></script>'
 ---
 
 ## Utilizing FluxCD, Weaveworks TF-Controller and boring-registry
@@ -33,11 +31,12 @@ header-includes:
 :::
 ::: {.column width=40%}
 
-![](assets/qr-linkedin.png){width=50%}
+![](assets/qr-linkedin.png){width=30%}
 
-![](assets/qr-sigterm.png){width=50%}
+![](assets/qr-sigterm.png){width=30%}
 
 :::
+
 ::::::
 
 # Today's menu
