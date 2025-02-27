@@ -1,5 +1,5 @@
 -- Path to the filters directory
-local filter_dir = "filters/"
+local filter_dir = "_filters/"
 
 -- Get a list of files in the `filters` directory
 -- Use pandoc's system module to run `ls` (cross-platform compatible)

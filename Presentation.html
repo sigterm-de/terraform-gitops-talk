@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="author" content="Daniel Ciaglia">
+  <title>Lessons learned from running Terraform at reasonable scale</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@^4//dist/reset.css">
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@^4//dist/reveal.css">
+  <style>
+    .reveal .sourceCode {  /* see #7635 */
+      overflow: visible;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@^4//dist/theme/solarized.css" id="theme">
+  <script src="https://unpkg.com/reveal.js@^4/plugin/highlight/highlight.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@^4/plugin/highlight/zenburn.css">
+  <link rel="stylesheet" href="_static/custom.css">
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+<section id="title-slide">
+  <h1 class="title">Lessons learned from running Terraform at reasonable
+scale</h1>
+  <p class="author">Daniel Ciaglia</p>
+</section>
+
+<section
+id="utilizing-fluxcd-weaveworks-tf-controller-and-boring-registry"
+class="slide level2">
+<h2>Utilizing FluxCD, Weaveworks TF-Controller and boring-registry</h2>
+<blockquote>
+<p>Why easy, when we can make it complicated? – the unknown platform
+engineer</p>
+</blockquote>
+<p>~~~~</p>
+<h3 id="usagenavigation">Usage/Navigation</h3>
+<ul>
+<li><code>n</code>, <code>p</code> - next, previous slide</li>
+<li><code>o</code> - overview</li>
+<li><code>f</code> - fullscreen</li>
+<li><code>b</code> - black out the presentation</li>
+<li><code>s</code> - speaker view</li>
+<li><span class="emoji" data-emoji="arrow_left">⬅️</span> <span
+class="emoji" data-emoji="arrow_right">➡️</span> - navigate on the
+top-level</li>
+</ul>
+</section>
+<section id="daniel-ciaglia-consultant"
+class="title-slide slide level1">
+<h1 class="r-fit-text">Daniel Ciaglia // <em>Consultant</em></h1>
+<div class="columns">
+<div class="column">
+<ul>
+<li><strong>Freelance</strong><br />
+<em>since 2022</em></li>
+<li><strong>TIER Mobility SE</strong><br />
+<em>Director of Engineering</em></li>
+<li><strong>kreuzwerker GmbH</strong><br />
+<em>Principal Consultant</em></li>
+<li><strong>Bundesdruckerei GmbH</strong><br />
+<em>Senior Support Manager</em></li>
+<li><em>[<strong>some more</strong>]</em></li>
+<li>SCUBA dive instructor</li>
+<li><strong>AWS User Group Berlin</strong><br />
+co-organiser</li>
+</ul>
+</div><div class="column">
+<p><img data-src="assets/qr-linkedin.png" class="r-stretch"
+style="width: 30vh;" /> <img data-src="assets/qr-sigterm.png"
+class="r-stretch" style="width: 30vh;" /></p>
+</div>
+</div>
+</section>
+
+<section id="todays-menu" class="title-slide slide level1">
+<h1 class="r-fit-text">Today’s menu</h1>
+<ol type="1">
+<li>A typical Terraform stack evolution</li>
+<li>Running Terraform in GitOps</li>
+<li>Thoughts on the stack</li>
+<li>Architectural Decision Records summary</li>
+</ol>
+</section>
+
+<section>
+<section id="typical-terraform-stack-evolution1"
+class="title-slide slide level1">
+<h1 class="r-fit-text">(1.1) Typical Terraform stack evolution<a
+href="#/fn1" class="footnote-ref" id="fnref1"
+role="doc-noteref"><sup>1</sup></a></h1>
+<p><em>Stack: Terraform root module<a href="#/fn2" class="footnote-ref"
+id="fnref2" role="doc-noteref"><sup>2</sup></a>, tracked with 1 state
+file</em></p>
+<p><em>Related</em>: Highly recommend talk “Terraform: from zero to
+madness” by <a href="https://sessionize.com/timur-bublik/"><span
+class="citation" data-cites="Timur">@Timur</span> Bublik</a></p>
+</section>
+<section id="in-the-beginning" class="slide level2">
+<h2>(1.1.1) in the beginning</h2>
+<div class="columns">
+<div class="column">
+<ul>
+<li>you start your project</li>
+<li>put everything in 1 directory</li>
+<li>maybe split files by broader domains.</li>
+</ul>
+</div><div class="column">
+<pre><code class="text">.
+├── databases.tf
+├── vpc.tf
+├── main.tf
+├── outputs.tf
+└── terraform.tf</code></pre>
+</div>
+</div>
+</section>
+<section id="the-stagingproduction-split" class="slide level2">
+<h2>(1.1.2) The staging/production split</h2>
+<div class="columns">
+<div class="column">
+<ul>
+<li>oh well, you need a staging environment</li>
+<li>both environments are very much the same</li>
+<li>you refactor the code to be parameterised by variables</li>
+<li>you provide 2 <code>.tfvars</code> files</li>
+</ul>
+</div><div class="column">
+<pre><code class="text" data-line-numbers="3,4-5">.
+├── production.tfvars
+├── staging.tfvars
+├── databases.tf
+├── vpc.tf
+├── variables.tf
+├── main.tf
+└── terraform.tf</code></pre>
+</div>
+</div>
+</section>
+<section id="code-repetition---i-need-modules" class="slide level2">
+<h2>(1.1.3) Code repetition - I need modules</h2>
+<div class="columns">
+<div class="column">
+<ul>
+<li>you add more services and they need infra</li>
+<li>the infra is similar</li>
+<li>you want to keep the code DRY<a href="#/fn3" class="footnote-ref"
+id="fnref3" role="doc-noteref"><sup>3</sup></a></li>
+<li>you create a repo, codify best practices, tag them for
+versioning</li>
+<li>you pull in modules via git</li>
+</ul>
+</div><div class="column">
+<pre><code class="hcl"># select a specific tag
+module "rds" {
+  source = "github.com/example/rds?ref=v1.2.0"
+}</code></pre>
+</div>
+</div>
+</section>
+<section id="the-great-separation" class="slide level2">
+<h2>(1.1.4) The great separation</h2>
+<div class="columns">
+<div class="column">
+<ul>
+<li>as the stack grows, the environments differ</li>
+<li>you start separating the code in larger blocks
+<ul>
+<li>the base environment</li>
+<li>the services</li>
+</ul></li>
+<li>the code is pulled in as modules</li>
+<li>the <code>services</code> module receives output of
+<code>base</code> as input eg. <code>vpc_id</code> or subnets</li>
+<li><code>terraform apply plan</code> is run manually still</li>
+</ul>
+</div><div class="column">
+<pre><code class="text">.
+├── environments
+│   ├── production
+│   │   ├── main.tf
+│   │   ├── outputs.tf
+│   │   └── variables.tf
+│   └── staging
+│       ├── main.tf
+│       ├── outputs.tf
+│       └── variables.tf
+└── modules
+    ├── base
+    │   ├── main.tf
+    │   ├── outputs.tf
+    │   ├── variables.tf
+    │   └── vpc.tf
+    └── services
+        ├── databases.tf
+        ├── main.tf
+        ├── outputs.tf
+        └── variables.tf</code></pre>
+</div>
+</div>
+</section>
+<section id="fast-forward" class="slide level2">
+<h2>(1.1.5) Fast forward</h2>
+<p><strong><span class="emoji" data-emoji="point_right">👉</span> At
+this point in time I joined the project <span class="emoji"
+data-emoji="point_left">👈</span></strong></p>
+<div class="columns">
+<div class="column">
+<p><strong>The situation</strong></p>
+<ul>
+<li>as the stack grows further, the amount of resources does as
+well</li>
+<li>each run of <code>terraform plan -out plan</code> takes more and
+more time</li>
+<li>to review and apply changes for developers becomes a dayfilling
+job</li>
+<li>you start cheating by targeted apply</li>
+<li>you notice that the amount of files downloaded for each
+<code>terraform</code> step is enormous<a href="#/fn4"
+class="footnote-ref" id="fnref4"
+role="doc-noteref"><sup>4</sup></a></li>
+<li>you notice that git tags can not be used for semantic versioning
+(<code>version</code>)</li>
+</ul>
+</div><div class="column">
+<p><strong>Possible solutions</strong></p>
+<ul>
+<li>to address the versioning and data transfer issues - use a private
+Terraform module registry</li>
+<li>to address the runtime and ownership issue - split the stacks and
+let the teams handle them (DevOps style)</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="the-boring-registry" class="slide level2">
+<h2>(1.2) The boring-registry</h2>
+<ul>
+<li>TIER Mobility developed their own “boring” Terraform registry
+without moving parts (hence the name)
+<ul>
+<li>Details to be found here:
+https://github.com/boring-registry/boring-registry/</li>
+<li>The important feature for now is support for the <a
+href="https://developer.hashicorp.com/terraform/internals/module-registry-protocol">Module
+Registry Protocol</a></li>
+</ul></li>
+<li><strong>You provide</strong> a S3 bucket, module code and package it
+in CD via
+<code>./boring-registry upload --type s3 (some more flags) ./your-module</code></li>
+<li><strong>You’ll get</strong> semantic versioning</li>
+</ul>
+<pre><code class="hcl">module "rds" {
+  source = "registry.example.com/acme/rds/aws"
+  version = "~> 0.1"
+}</code></pre>
+</section>
+<section id="separating-the-service-stacks" class="slide level2">
+<h2>(1.3) Separating the service stacks</h2>
+<h4 id="some-architectural-decisions">some Architectural Decisions</h4>
+<div class="columns">
+<div class="column">
+<p><strong>Don’t</strong></p>
+<ul>
+<li>separate services along team borders<a href="#/fn5"
+class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a>
+<span class="emoji" data-emoji="arrow_right">➡️</span> teams and
+responsibilities change, always<br />
+</li>
+<li>share states between services <span class="emoji"
+data-emoji="arrow_right">➡️</span> there are secrets in there!<a
+href="#/fn6" class="footnote-ref" id="fnref6"
+role="doc-noteref"><sup>6</sup></a> <span class="emoji"
+data-emoji="arrow_right">➡️</span> read the docs of the <a
+href="https://developer.hashicorp.com/terraform/language/state/remote-state-data"><code>terraform_remote_state</code></a>
+data source!</li>
+</ul>
+</div><div class="column">
+<p><strong>Do</strong></p>
+<ul>
+<li>Layer your stacks - account, network, clusters and services</li>
+<li>1 Terraform stack per service
+<ul>
+<li>good for least privilige access</li>
+<li>place the Terraform code into the service repo</li>
+</ul></li>
+<li>run the TF stacks in automation</li>
+<li>use an indirect way to share information between stacks<a
+href="#/fn7" class="footnote-ref" id="fnref7"
+role="doc-noteref"><sup>7</sup></a></li>
+</ul>
+</div>
+</div>
+</section>
+<section id="indirect-information-exchange" class="slide level2">
+<h2>(1.3.1) Indirect information exchange</h2>
+<div class="columns">
+<div class="column">
+<ul>
+<li>use structured data <span class="emoji"
+data-emoji="arrow_right">➡️</span> ideally JSON for
+<code>jsondecode()</code> and <code>jsonencode()</code></li>
+<li>use whatever storage you prefer <span class="emoji"
+data-emoji="arrow_right">➡️</span> SSM Parameter Store or S3</li>
+</ul>
+</div><div class="column">
+<p>Code for 3 Terraform modules will be provided</p>
+<ul>
+<li><code>s3_json_store</code> CRUD JSON data on S3</li>
+<li><code>ssm_json_store</code> CRUD JSON data on SSM Parameter
+store</li>
+<li><code>ssm_json_regex</code> read SSM parameter with regex</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="write-data-base-system" class="slide level2">
+<h2>(1.3.2) Write data (base system)</h2>
+<pre><code class="hcl" data-line-numbers="5-6, 8-20">module "ssm_service_data" {
+  source  = "registry.example.com/foo/ssm_json_store/aws"
+  version = "~> 1.0.2"
+
+  path = "/configuration"
+  name = "base"
+  data = {
+    domain           = local.domain_name
+    environment      = local.environment
+    environmentClass = local.environmentClass
+    backup_plan      = local.backup_plan
+    networking = {
+      vpc_id              = module.base.vpc_default_id
+      subnet_database_ids = module.base.subnet_private_database_ids
+      subnet_k8s_ids      = module.base.subnet_private_k8s_ids
+    }
+    cluster = {
+      name              = module.eks.cluster_name
+      oidc_issuer_url   = module.eks.cluster_oidc_issuer_url
+      oidc_provider_arn = module.eks.cluster_oidc_provider_arn
+    }
+  }
+}</code></pre>
+</section>
+<section id="write-data-upstream" class="slide level2">
+<h2>(1.3.3) Write data (upstream)</h2>
+<pre><code class="hcl" data-line-numbers="5-6, 8, 11-23">module "ssm_service_data" {
+  source  = "registry.example.com/foo/ssm_json_store/aws"
+  version = "~> 1.0.2"
+
+  path = "/configuration"
+  name = "upstream"
+  data = {
+    installed = true
+
+    private = {}
+    public = {
+      sns = {
+        "foo" = {
+          "arn"  = module.sns_foo.arn
+          "name" = module.sns_foo.name
+        }
+        sqs = {
+          "bar" = {
+            "arn"  = module.bar_queue.arn
+            "name" = module.bar_queue.name
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+</section>
+<section id="read-data-downstream" class="slide level2">
+<h2>(1.3.4) Read data (downstream)</h2>
+<pre><code class="hcl" data-line-numbers="6,10,14">module "ssm_data" {
+  source  = "registry.example.com/foo/ssm_json_store/aws"
+  version = "~> 0.1.0"
+
+  path                 = "/configuration"
+  include_filter_regex = "(base|upstream)"
+}
+
+module "sns_sqs_subscription_foo" {
+  count   = try(module.ssm_data.values["upstream"]["installed"], false) ? 1 : 0
+  source  = "registry.example.com/foo/sns_sqs_subscription/aws"
+  version = "~> 0.1"
+
+  sns_arn        = nonsensitive(module.ssm_data.values["upstream"]["public"]["sns"]["foo"]["arn"])
+  
+  message_retention_seconds = 1209600
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = module.dead_foo[0].arn
+    maxReceiveCount     = 5
+  })
+}</code></pre>
+</section>
+<section id="downsides-of-strong-decoupling" class="slide level2">
+<h2>(1.3.5) Downsides of strong decoupling</h2>
+<div class="columns">
+<div class="column">
+<ul>
+<li>Data contracts between stacks
+<ul>
+<li>dependencies</li>
+<li>versioning</li>
+</ul></li>
+<li>Dependencies of stacks
+<ul>
+<li>TF and Service code must be able to handle missing dependencies</li>
+<li>reconciliation of TF stacks to check changed upstreams</li>
+<li>eventually consistent</li>
+</ul></li>
+</ul>
+</div><div class="column">
+<ul>
+<li>Stack orchestration
+<ul>
+<li>state management should be centralised</li>
+<li>stack execution should be in automation</li>
+</ul></li>
+<li>Permission management
+<ul>
+<li>for code changes (eg. <code>CODEOWNERS</code>)</li>
+<li>for infrastructure changes</li>
+<li>for accessing resources</li>
+</ul></li>
+</ul>
+</div>
+</div>
+</section>
+<section id="soft-data-contract-between-stacks" class="slide level2"
+data-background-color="#edfced">
+<h2 data-background-color="#edfced">(1.3.6) Soft data contract between
+stacks</h2>
+<img data-src="assets/soft_contract.png" class="r-stretch" />
+</section></section>
+<section id="whats-reasonable-scale-btw"
+class="title-slide slide level1">
+<h1 class="r-fit-text">What’s “reasonable scale”, btw?</h1>
+<div class="columns">
+<div class="column">
+<ul>
+<li>we had 2 dimesions so far
+<ul>
+<li>number of TF stacks for <code>x</code></li>
+<li>number of environments for <code>y</code></li>
+<li>and a fixed number of tenants (<code>1</code>) for
+<code>z</code></li>
+</ul></li>
+<li>let’s expand the setup to multiple tenants
+<ul>
+<li>with this we’ll get a real <code>z</code> dimension</li>
+</ul></li>
+</ul>
+<p><strong><code>total stacks = stacks * environments * tenants</code></strong></p>
+<p>To give some numbers: my client <a
+href="https://www.lynq.tech/">LYNQTECH</a> runs ~100 microservices in at
+least 2 environments per tenant for 5+ tenants - north of 1000 stacks
+<span class="emoji" data-emoji="wink">😉</span></p>
+</div><div class="column">
+<img data-src="assets/multi-dimensions.png" class="r-stretch" />
+</div>
+</div>
+</section>
+
+<section>
+<section id="terraform-in-gitops" class="title-slide slide level1">
+<h1 class="r-fit-text">(2) Terraform in GitOps</h1>
+
+</section>
+<section id="fluxcd-primer8" class="slide level2">
+<h2>(2.1.1) FluxCD primer<a href="#/fn8" class="footnote-ref"
+id="fnref8" role="doc-noteref"><sup>8</sup></a></h2>
+<div class="columns">
+<div class="column">
+<h3 id="what-is-gitops">What is GitOps?</h3>
+<blockquote>
+<p>GitOps is an operational framework that takes DevOps best practices
+used for application development such as version control, collaboration,
+compliance, and CI/CD, and applies them to infrastructure automation. –
+https://about.gitlab.com/topics/gitops/</p>
+</blockquote>
+<ul>
+<li>In our context - <strong>pull vs. push principle</strong>
+<ul>
+<li>You don’t care in <em>which environment</em> a stack runs in</li>
+<li>They are ready for your stack and your code is pulled in (vs. pushed
+via a pipeline)</li>
+</ul></li>
+</ul>
+</div><div class="column">
+<img data-src="assets/flux_gitops-toolkit.png" class="r-stretch" />
+</div>
+</div>
+</section>
+<section id="weaveworks-tf-controller918" class="slide level2">
+<h2>(2.1.2) Weaveworks TF Controller<a href="#/fn9" class="footnote-ref"
+id="fnref9" role="doc-noteref"><sup>9</sup></a><a href="#/fn10"
+class="footnote-ref" id="fnref10"
+role="doc-noteref"><sup>10</sup></a></h2>
+<img data-src="assets/tf-controller-basic-architecture.png"
+class="r-stretch" />
+</section>
+<section id="structure-of-central-fluxcd-configuration"
+class="slide level2">
+<h2>(2.2.1) Structure of central FluxCD configuration</h2>
+<div class="columns">
+<div class="column">
+<ul>
+<li>Each environment must be configurable individually
+<ul>
+<li>has its own entry point for FluxCD</li>
+<li>this allows for configuration of deployed services</li>
+</ul></li>
+<li>For audit reasons, production environments must use fixed service
+versions, others can use semantic versioning<br />
+</li>
+<li>Flux applications must be DRY
+<ul>
+<li>do not c&amp;p code</li>
+<li>implication: no individual configuration of apps</li>
+</ul></li>
+</ul>
+</div><div class="column">
+<ul>
+<li>in the central Flux repo there are <strong>NO</strong> variables,
+parameters etc. pp.
+<ul>
+<li>we only document <strong>the intent</strong> to run a service</li>
+<li>self-configuration happens inside of an environment</li>
+</ul></li>
+<li>Use of OCI-based registries for sources only
+<ul>
+<li>everything as a final artefact</li>
+<li><code>flux push artifact</code><a href="#/fn11" class="footnote-ref"
+id="fnref11" role="doc-noteref"><sup>11</sup></a> is your friend</li>
+</ul></li>
+</ul>
+</div>
+</div>
+</section>
+<section id="fluxcd-as-an-app-of-apps-system" class="slide level2">
+<h2>FluxCD as an App of Apps system</h2>
+<div class="columns">
+<div class="column">
+<pre><code class="text" data-line-numbers="2-8,17-19">.
+├── environments
+│   ├── client-a
+│   │   ├── prod
+│   │   │   ├── services
+│   │   │   │   ├ _versions.yaml
+│   │   │   │   ├ foo.yaml
+│   │   │   │   └ bar.yaml
+│   │   │   └── system
+│   │   └── stage
+│   │       ├── services
+│   │       └── system
+│   ├── client-b
+│ [...]
+│
+├── flux-apps
+│  ├── service-stacks
+│  │   ├── foo
+│  │   ├── bar
+│  │ [...]
+│  │   └── baz
+│  └── system
+│    [...]
+│      ├── vertical-pod-autoscaler
+│      └── weaveworks-gitops</code></pre>
+</div><div class="column">
+<p><em>from the perspective of an individual FluxCD
+installation</em></p>
+<ul>
+<li><ol start="0" type="1">
+<li><ul>
+<li>cloud and runtime is set up</li>
+</ul></li>
+</ol>
+<ul>
+<li>provide data for stacks to become conscious<br />
+</li>
+</ul></li>
+<li><ol type="1">
+<li><ul>
+<li>load environment</li>
+</ul></li>
+</ol>
+<ul>
+<li>primary Flux app</li>
+<li>references all secondary service Flux apps</li>
+<li>includes the version tracking ConfigMap</li>
+</ul></li>
+<li><ol start="2" type="1">
+<li><ul>
+<li>load service Flux apps</li>
+</ul></li>
+</ol>
+<ul>
+<li>contains relevant manifests</li>
+<li>eg. OCI Sources, Terraform, Kustomization</li>
+</ul></li>
+<li><ol start="3" type="1">
+<li><ul>
+<li>apply individual service apps</li>
+</ul></li>
+</ol></li>
+</ul>
+</div>
+</div>
+</section>
+<section class="slide level2">
+
+<h3 id="primary-flux-app">Primary Flux app</h3>
+<img data-src="assets/wego-primary-app.png" class="r-stretch" />
+</section>
+<section class="slide level2">
+
+<h3 id="secondary-flux-app">Secondary Flux app</h3>
+<img data-src="assets/wego-secondary-app.png" class="r-stretch" />
+</section>
+<section id="post-build-variable-substitution10" class="slide level2">
+<h2>(2.3.1) Post build variable substitution<a href="#/fn12"
+class="footnote-ref" id="fnref12"
+role="doc-noteref"><sup>12</sup></a></h2>
+<div class="columns">
+<div class="column">
+<ul>
+<li>FluxCD’s unique possibility to replace variables in rendered
+manifests before apply</li>
+<li>in FluxCD repo
+<ul>
+<li>environment specific <code>_versions.yaml</code> becomes
+<code>service-versions</code> ConfigMap</li>
+<li>satisfies the “fixed versions” requirement</li>
+</ul></li>
+<li>In underlying IaC - basic environment information for a TF stack are
+written
+<ul>
+<li><code>base</code> ConfigMap provides <code>client</code>,
+<code>environment</code> and other data</li>
+<li>to form the path for Terraform state file</li>
+</ul></li>
+</ul>
+</div><div class="column">
+<pre><code class="yaml" data-line-numbers="6-9,16-20">apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: service-versions
+data:
+  version_foo: "2.5.0"
+  version_foo_tf: "~ 0.1.0-0"
+  version_vertical_pod_autoscaler: "~> 9.0.0"
+  version_vertical_pod_autoscaler_tf: "~ 0.1.0"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: init
+data:
+  clientId: "tenant-a"
+  domain: "stage.tenant-a.tld"
+  environment: "stage"
+  environmentClass: "non-prod"
+  region: "eu-central-1"</code></pre>
+</div>
+</div>
+</section>
+<section id="usage-example" class="slide level2">
+<h2>(2.3.2) usage example</h2>
+<div class="columns">
+<div class="column">
+<pre><code class="yaml" data-line-numbers="2,9">apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: OCIRepository
+metadata:
+  name: foo-iac
+spec:
+  interval: 5m
+  provider: aws
+  ref:
+    semver: "${version_foo_tf}"
+  url: oci://xxx.dkr.ecr.eu-central-1.amazonaws.com/iac/foo</code></pre>
+</div><div class="column">
+<pre><code class="yaml" data-line-numbers="2,9,11-12">apiVersion: infra.contrib.fluxcd.io/v1alpha2
+kind: Terraform
+metadata:
+  name: foo
+spec:
+  backendConfig:
+    customConfiguration: |
+      backend "s3" {
+        region         = "${region}"
+        bucket         = "terraform-states"
+        key            = "${clientId}/${environment}/stacks/foo.tfstate"
+        role_arn       = "arn:aws:iam::xxx:role/tf-${clientId}-${environment}"
+        dynamodb_table = "terraform-states-locks"
+        encrypt        = true
+      }
+  sourceRef:
+    kind: OCIRepository
+    name: foo-iac
+  vars: []</code></pre>
+</div>
+</div>
+</section>
+<section id="configuration-management" class="slide level2">
+<h2>(2.4.1) Configuration Management</h2>
+<ul>
+<li>(Terraform) code is agnostic of environments</li>
+<li>strict division of concerns between cloud and runtime environment
+<ul>
+<li>Helm/Kustomize - Runtime (Kubernetes)</li>
+<li>Terraform - Cloud</li>
+</ul></li>
+<li>Each <strong>Cloud</strong> and <strong>Runtime environment</strong>
+allow a stack to become concious
+<ul>
+<li>Cloud: SSM data <code>base</code>; Runtime: ConfigMap
+<code>init</code></li>
+<li><span class="emoji" data-emoji="point_right">👉</span> pull of
+configiguration vs. push</li>
+</ul></li>
+<li>per <strong>code stack</strong> - data are baked into artifact
+<ul>
+<li>terraform - single <code>configuration.tf</code></li>
+<li>kustomize - separate <code>overlay</code> directories</li>
+<li>helm - separate <code>values.yaml</code></li>
+</ul></li>
+</ul>
+</section>
+<section id="example" class="slide level2">
+<h2>(2.4.2) Example</h2>
+<div class="columns">
+<div class="column">
+<pre><code class="terraform">locals {
+  service      = "foo"
+  squad        = "bar"
+  domain_name  = module.ssm_data.values["base"]["domain"]
+  cluster_name = module.ssm_data.values["base"]["cluster"]["name"]
+  client       = nonsensitive(module.ssm_data.values["base"]["clientId"])
+  environment  = nonsensitive(module.ssm_data.values["base"]["environment"])
+  env_class    = nonsensitive(module.ssm_data.values["base"]["environment_class"])
+
+  configuration = {
+    default = {
+      k8s_namespace      = local.service
+      k8s_sa_name        = local.service
+      rds_instance_class = "db.t4g.medium"
+    }
+    client_a = {
+      stage = {}
+    }
+    environment_classes = {
+      non-prod  = {}
+      prod = {
+        rds_instance_class = "db.r6g.medium"
+      }
+    }
+  }
+
+  # choose the right configuration based on
+  # client/environment/environment class or simply defaults
+  selected_configuration = merge(
+    local.configuration["default"],
+    try(local.configuration[local.client][local.environment], {})
+  )
+}</code></pre>
+</div><div class="column">
+<pre><code class="hcl"># get the central SSM config parameters
+module "ssm_data" {
+  source  = "registry.example.com/foo/ssm_full_json_store/aws"
+  version = "0.3.1"
+
+  path                 = var.config_map_base_path
+  include_filter_regex = "(base|foo|bar)"
+}
+
+module "database" {
+  source  = "registry.example.com/foo/RDS/aws"
+  version = "3.5.0"
+
+  identifier          = local.service
+  squad               = local.squad
+  rds_engine_version  = local.selected_configuration["rds_engine_version"]
+  rds_instance_class  = local.selected_configuration["rds_instance_class"]
+  client_id           = local.client
+  environment         = local.environment
+  vpc_id              = module.ssm_data.values["base"]["aws"]["vpc_id"]
+  subnet_ids          = module.ssm_data.values["base"]["aws"]["subnet_public_ids"]
+  # [...]
+}</code></pre>
+</div>
+</div>
+</section>
+<section id="connecting-cloud-and-runtime" class="slide level2">
+<h2>(2.4.3) Connecting Cloud and Runtime</h2>
+<div class="columns">
+<div class="column">
+<ul>
+<li>remember: division of concerns - cloud and runtime</li>
+<li>Terraform stack writes structured data as JSON</li>
+<li>Runtime pulls in data via External Secrets Operator<a href="#/fn13"
+class="footnote-ref" id="fnref13"
+role="doc-noteref"><sup>13</sup></a></li>
+<li>Reloader watches and upgrades Pods with their associated data</li>
+</ul>
+<pre><code class="hcl">module "ssm_service_data" {
+  source  = "registry.example.com/foo/ssm_json_store/aws"
+  version = "1.0.2"
+  
+  path = "/configuration"
+  name = "foo"
+  data = {
+    installed = true
+    private = {
+      database = {
+        database_name     = module.database.databas
+        database_username = module.database.database_username
+        endpoint          = module.database.endpoint
+        reader_endpoint   = module.database.reader_endpoint
+        port              = module.database.cluster_port
+      }
+    }
+    public = {}
+  }
+}</code></pre>
+</div><div class="column">
+<pre><code class="yaml">apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: foo-secrets-ssm
+spec:
+  target:
+    name: foo-secrets-ssm
+  data:
+    # [...]
+    - remoteRef:
+        key: /configuration/foo
+        property: private.database.database_username
+      secretKey: DATABASE_USER
+    - remoteRef:
+        key: /configuration/foo
+        property: private.database.endpoint
+      secretKey: DATABASE_HOST
+---
+kind: Deployment
+metadata:
+  annotations:
+    reloader.stakater.com/auto: "true"</code></pre>
+</div>
+</div>
+</section>
+<section id="specifics-of-tf-controller" class="slide level2">
+<h2>(2.5) Specifics of TF-Controller</h2>
+<h3 id="traffic">(2.5.1) Traffic</h3>
+<div class="columns">
+<div class="column">
+<ul>
+<li>each stack has its own <code>tf-runner</code> pod
+<ul>
+<li><strong>Decision</strong>: no persistent pods between runs for
+security reasons (permissions of SA)</li>
+</ul></li>
+<li>Sizing example:
+<code>terraform-provider-aws_5.31.0_darwin_arm64.zip</code> = 84MB</li>
+<li>NAT costs <em>(AWS specific issue; GCP lowered egress costs to $0
+recently)</em>
+<ul>
+<li>reconcile every 30’</li>
+<li><code>terraform init</code> for each execution</li>
+<li>100 stacks * 48 runs/day * ~100MB providers * $0,052/GB =
+<strong>480GB/$24,96 day/environment</strong></li>
+</ul></li>
+</ul>
+</div><div class="column">
+<ul>
+<li><strong>boring-registry</strong> to the rescue <span class="emoji"
+data-emoji="tada">🎉</span>
+<ul>
+<li><a
+href="https://github.com/boring-registry/boring-registry/#provider-network-mirror">caching,
+pull-through proxy</a></li>
+<li>Provider Network Mirror Protocol</li>
+</ul></li>
+<li>provider stored and delivered as S3 objects</li>
+<li><span class="emoji" data-emoji="wink">😉</span> use S3 VPC
+endpoints</li>
+</ul>
+</div>
+</div>
+</section>
+<section class="slide level2">
+
+<h3 id="terraformrc"><code>.terraformrc</code></h3>
+<pre><code class="hcl">credentials "my.terraform-registry.foo.bar" {
+  token = "7H151553CUr3!" # we are 1337
+}
+
+provider_installation {
+  network_mirror {
+    url = "https://my.terraform-registry.foo.bar/v1/mirror/"
+    include = ["*/*"]
+  }
+}</code></pre>
+</section>
+<section class="slide level2">
+
+<h3 id="kubernetes-resources">(2.5.2) Kubernetes resources</h3>
+<div class="columns">
+<div class="column">
+<ul>
+<li>each reconcile cycle triggers one <code>tf-runner</code> pod per
+stack</li>
+<li>each <code>tf-runner</code> pods consumes
+<ul>
+<li>~800m CPU</li>
+<li>~150M Memory</li>
+</ul></li>
+<li>This would spawn a lot of machines at times</li>
+<li>using k8s limits based on <code>priorityClass</code></li>
+</ul>
+</div><div class="column">
+<pre><code class="yaml" data-line-numbers="3, 5-6, 9, 14, 18, 20">apiVersion: scheduling.k8s.io/v1
+description: used to limit the number of terraform runners
+kind: PriorityClass
+metadata:
+  name: terraform
+value: 0 # same priority as everybody else
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: terraform-runners
+spec:
+  hard:
+    pods: "10"
+  scopeSelector:
+    matchExpressions:
+    - operator: In
+      scopeName: PriorityClass
+      values:
+      - terraform</code></pre>
+</div>
+</div>
+</section>
+<section id="weave-policy-engine17" class="slide level2">
+<h2>(2.6) Weave Policy Engine<a href="#/fn14" class="footnote-ref"
+id="fnref14" role="doc-noteref"><sup>14</sup></a></h2>
+<div class="columns">
+<div class="column">
+<ul>
+<li>based on Rego and similar to Open Policy Agent</li>
+<li><strong>Goal</strong>: auto approve Terraform changes
+<ul>
+<li><strong>Decision</strong>: no destroy/recreate</li>
+<li><strong>Decision</strong>: no direct IAM resources (only via
+controlled modules)</li>
+</ul></li>
+<li><span class="emoji" data-emoji="warning">⚠️</span> <strong>not an
+easy task - talk of its own</strong></li>
+</ul>
+</div><div class="column">
+<img data-src="assets/weave_policy-engine.png" class="r-stretch" />
+</div>
+</div>
+</section>
+<section id="weave-gitops-ui11" class="slide level2">
+<h2>(2.7) Weave GitOps UI<a href="#/fn15" class="footnote-ref"
+id="fnref15" role="doc-noteref"><sup>15</sup></a></h2>
+<h4 id="aka---the-missing-fluxcd-ui">aka - the missing FluxCD UI</h4>
+<img data-src="assets/weave-ui-dashboard.png" class="r-stretch" />
+</section>
+<section class="slide level2">
+
+<img data-src="assets/weave-ui-runtime.png" class="r-stretch" />
+</section></section>
+<section>
+<section id="is-it-production-ready" class="title-slide slide level1">
+<h1 class="r-fit-text">(3.0) Is it production ready?</h1>
+<div class="columns">
+<div class="column">
+<ul>
+<li>tf-controller is sometimes uncertain about the state</li>
+<li>slow development of tf-controller, <del>thank you HashiCorp</del>
+<ul>
+<li>in principle ready for OpenTofu<a href="#/fn16" class="footnote-ref"
+id="fnref16" role="doc-noteref"><sup>16</sup></a></li>
+<li>the talk uses features from a pre-release<a href="#/fn17"
+class="footnote-ref" id="fnref17"
+role="doc-noteref"><sup>17</sup></a></li>
+</ul></li>
+<li>observability is not ideal
+<ul>
+<li>eg. finding all Terraform Manifests, which have a pending plan</li>
+</ul></li>
+</ul>
+</div><div class="column">
+<p><strong>Be honest, where are you in the project?</strong></p>
+<ul>
+<li>In the middle of cutting the large TF stacks
+<ul>
+<li><span class="emoji" data-emoji="point_right">👉</span> very useful
+tool: <a
+href="https://github.com/minamijoyo/tfmigrate">minamijoyo/tfmigrate</a></li>
+</ul></li>
+<li>Automatic approvals are yet to come</li>
+<li><a
+href="https://weaveworks.github.io/tf-controller/branch-planner/">Branch
+Planner</a> needs to be implemented to enable full developer
+ownership</li>
+<li>after IaC migration, services move to FluxCD as well</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="why-not-the-back-stack15" class="slide level2">
+<h2>(3.1) Why not the BACK stack<a href="#/fn18" class="footnote-ref"
+id="fnref18" role="doc-noteref"><sup>18</sup></a>?</h2>
+<div class="columns">
+<div class="column">
+<ul>
+<li><strong>Backstage (B)</strong>: A self-service portal to empower
+developers</li>
+<li><strong>Argo CD (A)</strong>: A GitOps-based continuous delivery
+(CD) tool for streamlined software delivery.</li>
+<li><strong>Crossplane (C)</strong>: A universal control plane
+simplifying self-service infrastructure provisioning through
+abstractions.</li>
+<li><strong>Kyverno (K)</strong>: A Policy as Code (PaC) tool</li>
+</ul>
+</div><div class="column">
+<ul>
+<li>existent Terraform stack and knowledge did not justify re-write of
+IaC</li>
+<li>Crossplane is bound to 1 kubernetes cluster (state in etcd) where
+Terraform is bound to a state file</li>
+<li>Introduction of Backstage was out of scope</li>
+<li>ArgoCD vs. FluxCD
+<ul>
+<li>ArgoCD’s handling of Helm charts (templated and applied)</li>
+<li>TF-Controller as part of FluxCD eco-system</li>
+<li>ArgoCD has UI and concept of multi-cluster baked in</li>
+</ul></li>
+<li>Kyverno “runs as a dynamic admission controller” can not be used as
+a decision engine</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="downsides" class="slide level2">
+<h2>(3.2) Downsides</h2>
+<ul>
+<li>development and local testing of TF code is hard
+<ul>
+<li>possibly via Branch Planner</li>
+<li><em>only for Github sources</em></li>
+</ul></li>
+<li>Terraform module registry - so batteries included for developers?
+yes, kind of, but
+<ul>
+<li>Terraform understanding needed</li>
+<li>it is hard to grock the stack data exchange concept</li>
+<li>we provide template repositories, use case documentation</li>
+</ul></li>
+<li>TF-Controller: (un)interruptable pods needed (for writing
+states)</li>
+<li>missing UI (for TF-Controller) and Monitoring APIs</li>
+<li>implicit data contracts between Terraform stacks</li>
+</ul>
+</section>
+<section id="an-uncertain-future" class="slide level2"
+data-background-color="#edfced">
+<h2 data-background-color="#edfced">(3.2.1) - An uncertain future</h2>
+<img data-src="assets/weaveworks_shutting_down.png" class="r-stretch" />
+<p>https://www.linkedin.com/feed/update/urn:li:activity:7160295096825860096/</p>
+</section>
+<section id="upsides" class="slide level2">
+<h2>(3.3) Upsides</h2>
+<ul>
+<li>all domains (code, kubernetes and cloud environment) follow the same
+pattern
+<ul>
+<li>same CI and CD</li>
+<li>same artefact type (OCI)</li>
+<li>similar release cycles</li>
+<li>single entry point for Product Owners</li>
+</ul></li>
+<li>IaC runner can be replaced
+<ul>
+<li>TF-Controller is just <strong>a</strong> controlled terraform
+executor</li>
+<li>migration to eg. Spacelift.io or others possible</li>
+<li>break-the-glas scenario supported (manual stack execution)</li>
+</ul></li>
+<li>Terraform/OpenTofu eco-system can be reused
+<ul>
+<li>providers</li>
+<li>knowledge and modules</li>
+</ul></li>
+</ul>
+</section></section>
+<section id="thanksides" class="title-slide slide level1">
+<h1 class="r-fit-text">(3.4) Thanksides</h1>
+<ul>
+<li><a href="https://www.lynq.tech/">LYNQTECH GmbH</a> for granting
+permission to share information and code
+<ul>
+<li><span class="emoji" data-emoji="wink">😉</span> LYNQTECH is hiring
+https://www.lynq.tech/jobs/</li>
+</ul></li>
+<li>All colleagues who were and are part of this journey</li>
+<li>The FluxCD Community and WeaveWorks for their software</li>
+</ul>
+<p><img data-src="assets/qr-linkedin.png" class="r-stretch"
+style="width:20.0%" /> <img data-src="assets/qr-sigterm.png"
+class="r-stretch" style="width:20.0%" /> <img
+data-src="assets/qr-talk-github.png" class="r-stretch"
+style="width:20.0%" /></p>
+</section>
+
+<section id="architectural-decisions" class="title-slide slide level1">
+<h1 class="r-fit-text">(4.0) Architectural decisions</h1>
+<div class="columns">
+<div class="column">
+<p><strong>General FluxCD</strong></p>
+<ul>
+<li>Each tenant environment must be configurable individually
+<ul>
+<li>For audit reasons, production envs must use fixed service
+versions</li>
+</ul></li>
+<li>Applications, in the central repo, must be DRY. No inidividual
+stacks.</li>
+<li>Use of OCI-based registries for sources only (exception: external
+Helm)</li>
+<li>Code is agnostic of environments and is not parameterised
+<ul>
+<li>Each <strong>cloud (AWS)</strong> and <strong>runtime (Kubernetes)
+environment</strong> allows a stack to become concious</li>
+<li>kustomize style data baked into artifact</li>
+</ul></li>
+<li>Secrets synchronised via External-Secret Operator</li>
+<li>Kubernetes cluster should be treated as cattle</li>
+</ul>
+</div><div class="column">
+<p><strong>TF-Controller</strong></p>
+<ul>
+<li>No vendor lock-in; re-usability of eco-system strong plus
+<ul>
+<li>Terraform providers</li>
+<li>Terraform OSS modules</li>
+</ul></li>
+<li>No persistent pods between runs</li>
+<li>Aim for Auto approval for Terraform changes
+<ul>
+<li>no destroy/recreate</li>
+<li>no direct IAM resources (only via controlled modules)</li>
+<li>only approved top-level module sources</li>
+</ul></li>
+</ul>
+</div>
+</div>
+</section>
+
+<section id="sources-links" class="title-slide slide level1">
+<h1 class="r-fit-text">Sources + Links</h1>
+<ol type="1">
+<li>FluxCD documentation - https://fluxcd.io/flux/components/</li>
+<li>Weave GitOps // Terraform Controller documentation -
+https://weaveworks.github.io/tf-controller/</li>
+<li>Weave GitOps // The Policy Ecosystem -
+https://docs.gitops.weave.works/docs/policy/getting-started/</li>
+</ol>
+</section>
+
+<section id="footnotes" class="footnotes footnotes-end-of-document"
+role="doc-endnotes">
+<hr />
+<ol>
+<li id="fn1"><p>your experience might be different <span class="emoji"
+data-emoji="smile">😄</span><a href="#/fnref1" class="footnote-back"
+role="doc-backlink">↩︎</a></p></li>
+<li
+id="fn2"><p>https://developer.hashicorp.com/terraform/language/files#the-root-module<a
+href="#/fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p>https://en.wikipedia.org/wiki/Don%27t_repeat_yourself<a
+href="#/fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn4"><p>HashiTalks DACH 2020 - <a
+href="https://www.sigterm.de/2020/12/03/hashitalks-dach/">Opinionated
+terraform modules and a registry</a><a href="#/fnref4"
+class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn5"><p><a
+href="https://tier.engineering/How-TIER-switched-paradigms-from-team-to-service-centric-Part-1">How
+TIER switched paradigms - from team- to service-centric</a><a
+href="#/fnref5" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn6"><p><a
+href="https://developer.hashicorp.com/terraform/language/state/sensitive-data">Sensitive
+Data in State</a><a href="#/fnref6" class="footnote-back"
+role="doc-backlink">↩︎</a></p></li>
+<li id="fn7"><p><a
+href="https://www.sigterm.de/2021/09/02/tier-infra-part-3/">TF-CIX as an
+approach to share information between terraform stacks</a><a
+href="#/fnref7" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn8"><p>https://fluxcd.io/flux/components/<a href="#/fnref8"
+class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn9"><p>https://github.com/weaveworks/tf-controller<a
+href="#/fnref9" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn10"><p><em><strong>Please note</strong>: As the tf-runner
+ServiceAccount is usually very powerful, do not run it in an accessible
+namespace!</em><a href="#/fnref10" class="footnote-back"
+role="doc-backlink">↩︎</a></p></li>
+<li id="fn11"><p>https://fluxcd.io/flux/cmd/flux_push_artifact/<a
+href="#/fnref11" class="footnote-back"
+role="doc-backlink">↩︎</a></p></li>
+<li
+id="fn12"><p>https://fluxcd.io/flux/components/kustomize/kustomizations/#post-build-variable-substitution/<a
+href="#/fnref12" class="footnote-back"
+role="doc-backlink">↩︎</a></p></li>
+<li id="fn13"><p><a
+href="https://external-secrets.io/latest/">https://external-secrets.io/</a>,
+<a href="https://github.com/stakater/Reloader">stakater/Reloader</a><a
+href="#/fnref13" class="footnote-back"
+role="doc-backlink">↩︎</a></p></li>
+<li id="fn14"><p><a
+href="https://docs.gitops.weave.works/docs/policy/intro/">Weave Policy
+Engine</a>, <a
+href="https://weaveworks.github.io/tf-controller/use-tf-controller/flux-receiver-and-alert/">Integrate
+TF Controller with Flux Receivers and Alerts</a>, <a
+href="https://www.openpolicyagent.org/">Open Policy Agent</a><a
+href="#/fnref14" class="footnote-back"
+role="doc-backlink">↩︎</a></p></li>
+<li id="fn15"><p>https://github.com/weaveworks/weave-gitops and
+https://docs.gitops.weave.works/<a href="#/fnref15"
+class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn16"><p>https://www.opentofu.org/<a href="#/fnref16"
+class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li
+id="fn17"><p>https://github.com/weaveworks/tf-controller/releases/tag/v0.16.0-rc.3<a
+href="#/fnref17" class="footnote-back"
+role="doc-backlink">↩︎</a></p></li>
+<li id="fn18"><p>Introducing the BACK Stack! -
+https://www.youtube.com/watch?v=SMlR12uwMLs<a href="#/fnref18"
+class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/reveal.js@^4//dist/reveal.js"></script>
+
+  <!-- reveal.js plugins -->
+  <script src="https://unpkg.com/reveal.js@^4//plugin/notes/notes.js"></script>
+  <script src="https://unpkg.com/reveal.js@^4//plugin/search/search.js"></script>
+  <script src="https://unpkg.com/reveal.js@^4//plugin/zoom/zoom.js"></script>
+
+  <script>
+
+      // Full list of configuration options available at:
+      // https://revealjs.com/config/
+      Reveal.initialize({
+        // Display controls in the bottom right corner
+        controls: true,
+
+        // Help the user learn the controls by providing hints, for example by
+        // bouncing the down arrow when they first encounter a vertical slide
+        controlsTutorial: true,
+
+        // Determines where controls appear, "edges" or "bottom-right"
+        controlsLayout: 'bottom-right',
+
+        // Visibility rule for backwards navigation arrows; "faded", "hidden"
+        // or "visible"
+        controlsBackArrows: 'faded',
+
+        // Display a presentation progress bar
+        progress: true,
+
+        // Display the page number of the current slide
+        slideNumber: false,
+
+        // 'all', 'print', or 'speaker'
+        showSlideNumber: 'all',
+
+        // Add the current slide number to the URL hash so that reloading the
+        // page/copying the URL will return you to the same slide
+        hash: 1,
+
+        // Start with 1 for the hash rather than 0
+        hashOneBasedIndex: false,
+
+        // Flags if we should monitor the hash and change slides accordingly
+        respondToHashChanges: true,
+
+        // Push each slide change to the browser history
+        history: 1,
+
+        // Enable keyboard shortcuts for navigation
+        keyboard: true,
+
+        // Enable the slide overview mode
+        overview: true,
+
+        // Disables the default reveal.js slide layout (scaling and centering)
+        // so that you can use custom CSS layout
+        disableLayout: false,
+
+        // Vertical centering of slides
+        center: true,
+
+        // Enables touch navigation on devices with touch input
+        touch: true,
+
+        // Loop the presentation
+        loop: 1,
+
+        // Change the presentation direction to be RTL
+        rtl: false,
+
+        // see https://revealjs.com/vertical-slides/#navigation-mode
+        navigationMode: 'default',
+
+        // Randomizes the order of slides each time the presentation loads
+        shuffle: false,
+
+        // Turns fragments on and off globally
+        fragments: true,
+
+        // Flags whether to include the current fragment in the URL,
+        // so that reloading brings you to the same fragment position
+        fragmentInURL: true,
+
+        // Flags if the presentation is running in an embedded mode,
+        // i.e. contained within a limited portion of the screen
+        embedded: false,
+
+        // Flags if we should show a help overlay when the questionmark
+        // key is pressed
+        help: true,
+
+        // Flags if it should be possible to pause the presentation (blackout)
+        pause: true,
+
+        // Flags if speaker notes should be visible to all viewers
+        showNotes: false,
+
+        // Global override for autoplaying embedded media (null/true/false)
+        autoPlayMedia: null,
+
+        // Global override for preloading lazy-loaded iframes (null/true/false)
+        preloadIframes: null,
+
+        // Number of milliseconds between automatically proceeding to the
+        // next slide, disabled when set to 0, this value can be overwritten
+        // by using a data-autoslide attribute on your slides
+        autoSlide: 0,
+
+        // Stop auto-sliding after user input
+        autoSlideStoppable: true,
+
+        // Use this method for navigation when auto-sliding
+        autoSlideMethod: null,
+
+        // Specify the average time in seconds that you think you will spend
+        // presenting each slide. This is used to show a pacing timer in the
+        // speaker view
+        defaultTiming: null,
+
+        // Enable slide navigation via mouse wheel
+        mouseWheel: false,
+
+        // The display mode that will be used to show slides
+        display: 'block',
+
+        // Hide cursor if inactive
+        hideInactiveCursor: true,
+
+        // Time before the cursor is hidden (in ms)
+        hideCursorTime: 5000,
+
+        // Opens links in an iframe preview overlay
+        previewLinks: false,
+
+        // Transition style (none/fade/slide/convex/concave/zoom)
+        transition: 'slide',
+
+        // Transition speed (default/fast/slow)
+        transitionSpeed: 'default',
+
+        // Transition style for full page slide backgrounds
+        // (none/fade/slide/convex/concave/zoom)
+        backgroundTransition: 'fade',
+
+        // Number of slides away from the current that are visible
+        viewDistance: 3,
+
+        // Number of slides away from the current that are visible on mobile
+        // devices. It is advisable to set this to a lower number than
+        // viewDistance in order to save resources.
+        mobileViewDistance: 2,
+
+        // The "normal" size of the presentation, aspect ratio will be preserved
+        // when the presentation is scaled to fit different resolutions. Can be
+        // specified using percentage units.
+        width: 1920,
+
+        height: 1200,
+
+        // reveal.js plugins
+        plugins: [
+    RevealHighlight ,
+          RevealNotes,
+          RevealSearch,
+          RevealZoom
+        ]
+      });
+    </script>
+    </body>
+</html>

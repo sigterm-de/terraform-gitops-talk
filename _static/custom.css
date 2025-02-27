@@ -1,0 +1,18 @@
+pre.mermaid {
+  display: inline-block; /* Treat it like an inline-block for layout purposes */
+  transform-origin: center; /* Keeps the transformation centered */
+  margin: 10px; /* Adds some space around each div */
+  border: 1px solid #ccc; /* Adds a border to visualize the div */
+  padding: 10px; /* Padding inside the div */
+  text-align: center;
+}
+.reveal pre code {
+  max-height: fit-content;
+}
+.reveal .r-stretch {
+  max-width: 100%;
+  max-height: 100%;
+}
+div.column {
+  flex: 1;
+}

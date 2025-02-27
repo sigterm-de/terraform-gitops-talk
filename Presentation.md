@@ -1,40 +1,56 @@
-theme: next,9
-slide-transition: push(vertical)
-autoscale: true
+---
+title: Lessons learned from running Terraform at reasonable scale
+author: Daniel Ciaglia
+theme: solarized
+header-includes:
+  # - '<script src="https://cdn.jsdelivr.net/npm/reveal.js-mermaid-plugin@11/plugin/mermaid/mermaid.js"></script>'
+  - '<script src="$revealjs-url$/plugin/highlight/highlight.js"></script>'
+  - '<link rel="stylesheet" href="$revealjs-url$/plugin/highlight/zenburn.css">'
+  - '<link rel="stylesheet" href="_static/custom.css">'
+---
 
-[.footer: 2024-01-16 // Daniel Ciaglia \<daniel@sigterm.de\>]
-
-# Lessons learned from running Terraform at reasonable scale
+## Utilizing FluxCD, Weaveworks TF-Controller and boring-registry
 
 > Why easy, when we can make it complicated?
 > -- the unknown platform engineer
 
-Utilizing FluxCD, Weaveworks TF-Controller and boring-registry at [LYNQTECH](https://www.lynq.tech/)
+~~~~
 
----
+### Usage/Navigation
+
+- `n`, `p` - next, previous slide
+- `o` - overview
+- `f` - fullscreen
+- `b` - black out the presentation
+- `s` - speaker view
+- :arrow_left: :arrow_right: - navigate on the top-level
 
 # Daniel Ciaglia // _Consultant_
 
-[.column]
+:::::: {.columns}
+::: {.column}
 
-- **Freelance**
+- **Freelance** \
   _since 2022_
-- **TIER Mobility SE**
-  _Director of Engineering_ 
-- **kreuzwerker GmbH**
+- **TIER Mobility SE** \
+  _Director of Engineering_
+- **kreuzwerker GmbH** \
   _Principal Consultant_
-- **Bundesdruckerei GmbH**
+- **Bundesdruckerei GmbH** \
   _Senior Support Manager_
 - _[**some more**]_
 - SCUBA dive instructor
-- **AWS User Group Berlin**
+- **AWS User Group Berlin** \
   co-organiser
 
-[.column]
+:::
+::: {.column}
 
-![inline](assets/qr-linkedin.png) ![inline](assets/qr-sigterm.png)
+![](assets/qr-linkedin.png){style="width: 30vh;"}
+![](assets/qr-sigterm.png){style="width: 30vh;"}
 
----
+:::
+::::::
 
 # Today's menu
 
@@ -43,25 +59,23 @@ Utilizing FluxCD, Weaveworks TF-Controller and boring-registry at [LYNQTECH](htt
 3. Thoughts on the stack
 4. Architectural Decision Records summary
 
----
-
 # (1.1) Typical Terraform stack evolution[^1]
 
 _Stack: Terraform root module[^2], tracked with 1 state file_
 
 _Related_: Highly recommend talk "Terraform: from zero to madness" by [@Timur Bublik](https://sessionize.com/timur-bublik/)
 
----
-
 ## (1.1.1) in the beginning
 
-[.column]
+:::::: {.columns}
+::: {.column}
 
 - you start your project
 - put everything in 1 directory
 - maybe split files by broader domains.
 
-[.column]
+:::
+::: {.column}
 
 ```text
 .
@@ -72,20 +86,23 @@ _Related_: Highly recommend talk "Terraform: from zero to madness" by [@Timur Bu
 └── terraform.tf
 ```
 
----
+:::
+::::::
+
 ## (1.1.2) The staging/production split
 
-[.column]
+:::::: {.columns}
+::: {.column}
 
 - oh well, you need a staging environment
 - both environments are very much the same
 - you refactor the code to be parameterised by variables
 - you provide 2 `.tfvars` files
 
-[.column]
+:::
+::: {.column}
 
-[.code-highlight: 2-3, 6]
-```text
+```text {data-line-numbers="3,4-5"}
 .
 ├── production.tfvars
 ├── staging.tfvars
@@ -96,10 +113,13 @@ _Related_: Highly recommend talk "Terraform: from zero to madness" by [@Timur Bu
 └── terraform.tf
 ```
 
----
+:::
+::::::
+
 ## (1.1.3) Code repetition - I need modules
 
-[.column]
+:::::: {.columns}
+::: {.column}
 
 - you add more services and they need infra 
 - the infra is similar
@@ -107,19 +127,24 @@ _Related_: Highly recommend talk "Terraform: from zero to madness" by [@Timur Bu
 - you create a repo, codify best practices, tag them for versioning
 - you pull in modules via git
 
-[.column]
+:::
+::: {.column}
 
-```
+```hcl
 # select a specific tag
 module "rds" {
   source = "github.com/example/rds?ref=v1.2.0"
 }
 ```
 
----
+:::
+::::::
+
 ## (1.1.4) The great separation
 
-[.column]
+:::::: {.columns}
+::: {.column}
+
 - as the stack grows, the environments differ
 - you start separating the code in larger blocks
   - the base environment
@@ -129,9 +154,10 @@ module "rds" {
   eg. `vpc_id` or subnets
 - `terraform apply plan` is run manually still
 
-[.column]
+:::
+::: {.column}
 
-```
+```text
 .
 ├── environments
 │   ├── production
@@ -154,12 +180,17 @@ module "rds" {
         ├── outputs.tf
         └── variables.tf
 ```
----
+
+:::
+::::::
+
 ## (1.1.5) Fast forward
 
 **:point_right: At this point in time I joined the project :point_left:**
 
-[.column]
+:::::: {.columns}
+::: {.column}
+
 **The situation**
 
 - as the stack grows further, the amount of resources does as well
@@ -169,13 +200,17 @@ module "rds" {
 - you notice that the amount of files downloaded for each `terraform` step is enormous[^4]
 - you notice that git tags can not be used for semantic versioning (`version`)
 
-[.column]
+:::
+::: {.column}
+
 **Possible solutions**
 
 - to address the versioning and data transfer issues - use a private Terraform module registry
 - to address the runtime and ownership issue - split the stacks and let the teams handle them (DevOps style)
 
----
+:::
+::::::
+
 ## (1.2) The boring-registry 
 
 - TIER Mobility developed their own "boring" Terraform registry without moving parts (hence the name)
@@ -186,19 +221,20 @@ module "rds" {
 - **You'll get**
   semantic versioning
 
-```
+```hcl
 module "rds" {
   source = "registry.example.com/acme/rds/aws"
   version = "~> 0.1"
 }
 ```
 
----
 ## (1.3) Separating the service stacks
 
 #### some Architectural Decisions
 
-[.column]
+:::::: {.columns}
+::: {.column}
+
 **Don't**
 
 - separate services along team borders[^5]
@@ -207,7 +243,9 @@ module "rds" {
   :arrow_right: there are secrets in there![^6]
   :arrow_right: read the docs of the [`terraform_remote_state`](https://developer.hashicorp.com/terraform/language/state/remote-state-data) data source!
 
-[.column]
+:::
+::: {.column}
+
 **Do**
 
 - Layer your stacks - account, network, clusters and services
@@ -217,16 +255,22 @@ module "rds" {
 - run the TF stacks in automation
 - use an indirect way to share information between stacks[^7]
 
----
+:::
+::::::
+
 ## (1.3.1) Indirect information exchange
 
-[.column]
+:::::: {.columns}
+::: {.column}
+
 - use structured data
   :arrow_right: ideally JSON for `jsondecode()` and `jsonencode()`
 - use whatever storage you prefer
   :arrow_right: SSM Parameter Store or S3
 
-[.column]
+:::
+::: {.column}
+
 Code for 3 Terraform modules will be provided
 
 - `s3_json_store`
@@ -236,11 +280,12 @@ Code for 3 Terraform modules will be provided
 - `ssm_json_regex`
   read SSM parameter with regex 
 
----
+:::
+::::::
+
 ## (1.3.2) Write data (base system)
 
-[.code-highlight: 5-6, 8-20]
-```
+```hcl {data-line-numbers="5-6, 8-20"}
 module "ssm_service_data" {
   source  = "registry.example.com/foo/ssm_json_store/aws"
   version = "~> 1.0.2"
@@ -266,11 +311,10 @@ module "ssm_service_data" {
 }
 ```
 
----
 ## (1.3.3) Write data (upstream)
 
-[.code-highlight: 5-6, 8, 11-23]
-```
+
+```hcl {data-line-numbers="5-6, 8, 11-23"}
 module "ssm_service_data" {
   source  = "registry.example.com/foo/ssm_json_store/aws"
   version = "~> 1.0.2"
@@ -286,11 +330,12 @@ module "ssm_service_data" {
         "foo" = {
           "arn"  = module.sns_foo.arn
           "name" = module.sns_foo.name
-      }
-      sqs = {
-        "bar" = {
-          "arn"  = module.bar_queue.arn
-          "name" = module.bar_queue.name
+        }
+        sqs = {
+          "bar" = {
+            "arn"  = module.bar_queue.arn
+            "name" = module.bar_queue.name
+          }
         }
       }
     }
@@ -298,11 +343,9 @@ module "ssm_service_data" {
 }
 ```
 
----
 ## (1.3.4) Read data (downstream)
 
-[.code-highlight: 6, 10, 14]
-```
+```hcl {data-line-numbers="6,10,14"}
 module "ssm_data" {
   source  = "registry.example.com/foo/ssm_json_store/aws"
   version = "~> 0.1.0"
@@ -326,10 +369,11 @@ module "sns_sqs_subscription_foo" {
 }
 ```
 
----
 ## (1.3.5) Downsides of strong decoupling
 
-[.column]
+:::::: {.columns}
+::: {.column}
+
 - Data contracts between stacks
   - dependencies
   - versioning
@@ -338,7 +382,9 @@ module "sns_sqs_subscription_foo" {
   - reconciliation of TF stacks to check changed upstreams
   - eventually consistent
 
-[.column]
+:::
+::: {.column}
+
 - Stack orchestration
   - state management should be centralised
   - stack execution should be in automation
@@ -347,17 +393,18 @@ module "sns_sqs_subscription_foo" {
   - for infrastructure changes
   - for accessing resources
 
----
-[.background-color: #edfced]
-[.footer: Post to be found here: https://www.sigterm.de/2024/01/24/data-contract-for-terraform-stacks/]
-## (1.3.6) Soft data contract between stacks
+:::
+::::::
 
-![inline](assets/soft_contract.png)
+## (1.3.6) Soft data contract between stacks {background-color="#edfced"}
 
----
+![](assets/soft_contract.png)
+
 # What's "reasonable scale", btw?
 
-[.column]
+:::::: {.columns}
+::: {.column}
+
 - we had 2 dimesions so far
   - number of TF stacks for `x`
   - number of environments for `y`
@@ -370,17 +417,21 @@ __`total stacks = stacks * environments * tenants`__
 To give some numbers: my client [LYNQTECH](https://www.lynq.tech/) runs ~100 microservices in at least 2 environments per tenant
 for 5+ tenants - north of 1000 stacks :wink:  
 
-[.column]
-![inline](assets/multi-dimensions.png)
+:::
+::: {.column}
 
----
+![](assets/multi-dimensions.png)
+
+:::
+::::::
+
 # (2) Terraform in GitOps
-
----
 
 ## (2.1.1) FluxCD primer[^8]
 
-[.column]
+:::::: {.columns}
+::: {.column}
+
 ### What is GitOps?
 > GitOps is an operational framework that takes DevOps best practices used for application development such as version control, collaboration, compliance, and CI/CD, and applies them to infrastructure automation.
 > -- https://about.gitlab.com/topics/gitops/
@@ -389,19 +440,23 @@ for 5+ tenants - north of 1000 stacks :wink:
   - You don't care in _which environment_ a stack runs in
   - They are ready for your stack and your code is pulled in (vs. pushed via a pipeline)
 
-[.column]
-![inline](assets/flux_gitops-toolkit.png)
+:::
+::: {.column}
 
----
+![](assets/flux_gitops-toolkit.png)
 
-## (2.1.2) Weaveworks TF Controller[^9] [^18]
+:::
+::::::
 
-![inline](assets/tf-controller-basic-architecture.png)
+## (2.1.2) Weaveworks TF Controller[^9][^18]
 
----
+![](assets/tf-controller-basic-architecture.png)
+
 ## (2.2.1) Structure of central FluxCD configuration
 
-[.column]
+:::::: {.columns}
+::: {.column}
+
 - Each environment must be configurable individually
   - has its own entry point for FluxCD
   - this allows for configuration of deployed services
@@ -410,7 +465,9 @@ for 5+ tenants - north of 1000 stacks :wink:
   - do not c&p code
   - implication: no individual configuration of apps
 
-[.column]
+:::
+::: {.column}
+
 - in the central Flux repo there are **NO** variables, parameters etc. pp.
   - we only document **the intent** to run a service
   - self-configuration happens inside of an environment
@@ -418,13 +475,15 @@ for 5+ tenants - north of 1000 stacks :wink:
   - everything as a final artefact
   - `flux push artifact`[^12] is your friend
 
----
+:::
+::::::
+
 ## FluxCD as an App of Apps system
 
-[.column]
-[.code-highlight: 2-8]
-[.code-highlight: 17-19]
-```text
+:::::: {.columns}
+::: {.column}
+
+```text {data-line-numbers="2-8,17-19"}
 .
 ├── environments
 │   ├── client-a
@@ -451,7 +510,10 @@ for 5+ tenants - north of 1000 stacks :wink:
 │      ├── vertical-pod-autoscaler
 │      └── weaveworks-gitops
 ```
-[.column]
+
+:::
+::: {.column}
+
 _from the perspective of an individual FluxCD installation_
 
 - (0) - cloud and runtime is set up
@@ -465,18 +527,26 @@ _from the perspective of an individual FluxCD installation_
   - eg. OCI Sources, Terraform, Kustomization
 - (3) - apply individual service apps 
 
+:::
+::::::
+
 ---
+
 ### Primary Flux app
-![inline](assets/wego-primary-app.png)
+
+![](assets/wego-primary-app.png)
 
 ---
+
 ### Secondary Flux app
-![inline](assets/wego-secondary-app.png)
 
----
+![](assets/wego-secondary-app.png)
+
 ## (2.3.1) Post build variable substitution[^10]
 
-[.column]
+:::::: {.columns}
+::: {.column}
+
 - FluxCD's unique possibility to replace variables in rendered manifests before apply 
 - in FluxCD repo
   - environment specific `_versions.yaml` becomes `service-versions` ConfigMap
@@ -485,9 +555,10 @@ _from the perspective of an individual FluxCD installation_
   - `base` ConfigMap provides `client`, `environment` and other data
   - to form the path for Terraform state file
 
-[.column]
-[.code-highlight: 6-9, 16-20]
-```yaml
+:::
+::: {.column}
+
+```yaml {data-line-numbers="6-9,16-20"}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -510,11 +581,15 @@ data:
   region: "eu-central-1"
 ```
 
----
+:::
+::::::
+
 ## (2.3.2) usage example
-[.column]
-[.code-highlight: 2, 9]
-```yaml
+
+:::::: {.columns}
+::: {.column}
+
+```yaml {data-line-numbers="2,9"}
 apiVersion: source.toolkit.fluxcd.io/v1beta2
 kind: OCIRepository
 metadata:
@@ -527,9 +602,10 @@ spec:
   url: oci://xxx.dkr.ecr.eu-central-1.amazonaws.com/iac/foo
 ```
 
-[.column]
-[.code-highlight: 2, 9, 11-12]
-```yaml
+:::
+::: {.column}
+
+```yaml {data-line-numbers="2,9,11-12"}
 apiVersion: infra.contrib.fluxcd.io/v1alpha2
 kind: Terraform
 metadata:
@@ -551,10 +627,11 @@ spec:
   vars: []
 ```
 
----
+:::
+::::::
+
 ## (2.4.1) Configuration Management
 
-[.column]
 - (Terraform) code is agnostic of environments
 - strict division of concerns between cloud and runtime environment
   - Helm/Kustomize - Runtime (Kubernetes)
@@ -567,11 +644,12 @@ spec:
     - kustomize - separate `overlay` directories
     - helm - separate `values.yaml`
 
----
 ## (2.4.2) Example
 
-[.column]
-```
+:::::: {.columns}
+::: {.column}
+
+```terraform
 locals {
   service      = "foo"
   squad        = "bar"
@@ -607,9 +685,10 @@ locals {
 }
 ```
 
-[.column]
+:::
+::: {.column}
 
-```
+```hcl
 # get the central SSM config parameters
 module "ssm_data" {
   source  = "registry.example.com/foo/ssm_full_json_store/aws"
@@ -635,17 +714,20 @@ module "database" {
 }
 ```
 
----
+:::
+::::::
 
 ## (2.4.3) Connecting Cloud and Runtime
 
-[.column]
+:::::: {.columns}
+::: {.column}
+
 - remember: division of concerns - cloud and runtime
 - Terraform stack writes structured data as JSON
 - Runtime pulls in data via External Secrets Operator[^16]
 - Reloader watches and upgrades Pods with their associated data
 
-```
+```hcl
 module "ssm_service_data" {
   source  = "registry.example.com/foo/ssm_json_store/aws"
   version = "1.0.2"
@@ -668,7 +750,8 @@ module "ssm_service_data" {
 }
 ```
 
-[.column]
+:::
+::: {.column}
 
 ```yaml
 apiVersion: external-secrets.io/v1beta1
@@ -695,13 +778,16 @@ metadata:
     reloader.stakater.com/auto: "true"
 ```
 
----
+:::
+::::::
+
 ## (2.5) Specifics of TF-Controller
 
----
 ### (2.5.1) Traffic
 
-[.column]
+:::::: {.columns}
+::: {.column}
+
 - each stack has its own `tf-runner` pod
   - **Decision**: no persistent pods between runs for security reasons (permissions of SA)
 - Sizing example: `terraform-provider-aws_5.31.0_darwin_arm64.zip` = 84MB
@@ -710,17 +796,23 @@ metadata:
   - `terraform init` for each execution
   - 100 stacks * 48 runs/day * ~100MB providers * $0,052/GB = **480GB/$24,96 day/environment**
 
-[.column]
+:::
+::: {.column}
+
 - **boring-registry** to the rescue :tada:
   - [caching, pull-through proxy](https://github.com/boring-registry/boring-registry/#provider-network-mirror)
   - Provider Network Mirror Protocol
 - provider stored and delivered as S3 objects
 - :wink: use S3 VPC endpoints
 
+:::
+::::::
+
 ---
+
 ### `.terraformrc`
 
-```
+```hcl
 credentials "my.terraform-registry.foo.bar" {
   token = "7H151553CUr3!" # we are 1337
 }
@@ -734,9 +826,12 @@ provider_installation {
 ```
 
 ---
+
 ### (2.5.2) Kubernetes resources
 
-[.column]
+:::::: {.columns}
+::: {.column}
+
 - each reconcile cycle triggers one `tf-runner` pod per stack
 - each `tf-runner` pods consumes
   - ~800m CPU
@@ -744,9 +839,10 @@ provider_installation {
 - This would spawn a lot of machines at times
 - using k8s limits based on `priorityClass`
 
-[.column]
-[.code-highlight: 3, 5-6, 9, 14, 18, 20]
-```yaml
+:::
+::: {.column}
+
+```yaml {data-line-numbers="3, 5-6, 9, 14, 18, 20"}
 apiVersion: scheduling.k8s.io/v1
 description: used to limit the number of terraform runners
 kind: PriorityClass
@@ -768,32 +864,44 @@ spec:
       values:
       - terraform
 ```
----
+
+:::
+::::::
+
 ## (2.6) Weave Policy Engine[^17]
 
-[.column]
+:::::: {.columns}
+::: {.column}
+
 - based on Rego and similar to Open Policy Agent
 - **Goal**: auto approve Terraform changes
   - **Decision**: no destroy/recreate
   - **Decision**: no direct IAM resources (only via controlled modules)
 - :warning: **not an easy task - talk of its own** 
- 
 
-[.column]
-![inline](assets/weave_policy-engine.png)
+:::
+::: {.column}
 
+![](assets/weave_policy-engine.png)
 
----
+:::
+::::::
+
 ## (2.7) Weave GitOps UI[^11]
 
 #### aka - the missing FluxCD UI
 
-![inline](assets/weave-ui-dashboard.png) ![inline](assets/weave-ui-runtime.png)
+![](assets/weave-ui-dashboard.png)
 
 ---
+
+![](assets/weave-ui-runtime.png)
+
 # (3.0) Is it production ready?
 
-[.column]
+:::::: {.columns}
+::: {.column}
+
 - tf-controller is sometimes uncertain about the state
 - slow development of tf-controller, ~~thank you HashiCorp~~
   - in principle ready for OpenTofu[^13]
@@ -801,7 +909,9 @@ spec:
 - observability is not ideal
   - eg. finding all Terraform Manifests, which have a pending plan
 
-[.column]
+:::
+::: {.column}
+
 **Be honest, where are you in the project?**
 
 - In the middle of cutting the large TF stacks
@@ -810,16 +920,22 @@ spec:
 - [Branch Planner](https://weaveworks.github.io/tf-controller/branch-planner/) needs to be implemented to enable full developer ownership
 - after IaC migration, services move to FluxCD as well
 
----
+:::
+::::::
+
 ## (3.1) Why not the BACK stack[^15]?
 
-[.column]
+:::::: {.columns}
+::: {.column}
+
 - **Backstage (B)**: A self-service portal to empower developers
 - **Argo CD (A)**: A GitOps-based continuous delivery (CD) tool for streamlined software delivery.
 - **Crossplane (C)**: A universal control plane simplifying self-service infrastructure provisioning through abstractions.
 - **Kyverno (K)**: A Policy as Code (PaC) tool
 
-[.column]
+:::
+::: {.column}
+
 - existent Terraform stack and knowledge did not justify re-write of IaC
 - Crossplane is bound to 1 kubernetes cluster (state in etcd) where Terraform is bound to a state file 
 - Introduction of Backstage was out of scope
@@ -830,7 +946,9 @@ spec:
 - Kyverno "runs as a dynamic admission controller"
   can not be used as a decision engine
 
----
+:::
+::::::
+
 ## (3.2) Downsides
 
 - development and local testing of TF code is hard
@@ -845,15 +963,13 @@ spec:
 - missing UI (for TF-Controller) and Monitoring APIs
 - implicit data contracts between Terraform stacks
 
----
-[.background-color: #edfced]
-## (3.2.1) - An uncertain future
 
-![inline](assets/weaveworks_shutting_down.png)
+## (3.2.1) - An uncertain future {background-color="#edfced"}
 
-[.footer: 2024-02-06 - https://www.linkedin.com/feed/update/urn:li:activity:7160295096825860096/]
+![](assets/weaveworks_shutting_down.png){.r-stretch}
 
----
+https://www.linkedin.com/feed/update/urn:li:activity:7160295096825860096/
+
 ## (3.3) Upsides
 
 - all domains (code, kubernetes and cloud environment) follow the same pattern
@@ -869,26 +985,23 @@ spec:
   - providers
   - knowledge and modules
 
----
-[.footer: 2024-01-16 // Lessons learned from running Terraform at reasonable scale // Daniel Ciaglia \<daniel@sigterm.de\>]
+# (3.4) Thanksides
 
-## (3.4) Thanksides
-
-[.column]
 - [LYNQTECH GmbH](https://www.lynq.tech/) for granting permission to share information and code
   - :wink: LYNQTECH is hiring
     https://www.lynq.tech/jobs/
 - All colleagues who were and are part of this journey
 - The FluxCD Community and WeaveWorks for their software
 
-[.column]
-![inline](assets/qr-linkedin.png) ![inline](assets/qr-sigterm.png)
-![inline](assets/qr-talk-github.png)
+![](assets/qr-linkedin.png){width=20%}
+![](assets/qr-sigterm.png){width=20%}
+![](assets/qr-talk-github.png){width=20%}
 
----
 # (4.0) Architectural decisions
 
-[.column]
+:::::: {.columns}
+::: {.column}
+
 **General FluxCD**
 
 - Each tenant environment must be configurable individually
@@ -901,7 +1014,9 @@ spec:
 - Secrets synchronised via External-Secret Operator
 - Kubernetes cluster should be treated as cattle
 
-[.column]
+:::
+::: {.column}
+
 **TF-Controller**
 
 - No vendor lock-in; re-usability of eco-system strong plus
@@ -913,14 +1028,15 @@ spec:
   - no direct IAM resources (only via controlled modules)
   - only approved top-level module sources
 
----
-**Image sources**
+:::
+::::::
+
+# Sources + Links
 
 1. FluxCD documentation - https://fluxcd.io/flux/components/
 2. Weave GitOps // Terraform Controller documentation - https://weaveworks.github.io/tf-controller/
 3. Weave GitOps // The Policy Ecosystem - https://docs.gitops.weave.works/docs/policy/getting-started/
 
-<!-- Footnotes -->
 [^1]: your experience might be different :smile:
 
 [^2]: https://developer.hashicorp.com/terraform/language/files#the-root-module
