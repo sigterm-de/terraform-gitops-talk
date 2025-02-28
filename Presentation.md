@@ -11,7 +11,7 @@ header-includes:
 > Why easy, when we can make it complicated?
 > -- the unknown platform engineer
 
-~~~~
+.....
 
 ### Usage/Navigation
 
