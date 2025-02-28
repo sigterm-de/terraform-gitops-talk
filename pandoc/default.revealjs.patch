@@ -1,0 +1,32 @@
+*** default.revealjs	2025-02-28 16:00:05.872572632 +0100
+--- default.revealjs.new	2025-02-28 15:49:35.994184000 +0100
+***************
+*** 18,23 ****
+--- 18,24 ----
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+    <link rel="stylesheet" href="$revealjs-url$/dist/reset.css">
+    <link rel="stylesheet" href="$revealjs-url$/dist/reveal.css">
++   <link rel="stylesheet" href="$revealjs-url$/plugin/highlight/zenburn.css">
+    <style>
+      .reveal .sourceCode {  /* see #7635 */
+        overflow: visible;
+***************
+*** 84,89 ****
+--- 85,91 ----
+    <script src="$revealjs-url$/plugin/notes/notes.js"></script>
+    <script src="$revealjs-url$/plugin/search/search.js"></script>
+    <script src="$revealjs-url$/plugin/zoom/zoom.js"></script>
++   <script src="$revealjs-url$/plugin/highlight/highlight.js"></script>
+  $if(mathjax)$
+    <script src="$revealjs-url$/plugin/math/math.js"></script>
+  $endif$
+***************
+*** 305,310 ****
+--- 307,313 ----
+  
+          // reveal.js plugins
+          plugins: [
++           RevealHighlight,
+  $if(mathjax)$
+            RevealMath,
+  $endif$

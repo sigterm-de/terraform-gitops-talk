@@ -4,9 +4,6 @@ author: Daniel Ciaglia
 theme: solarized
 header-includes:
   # - '<script src="https://cdn.jsdelivr.net/npm/reveal.js-mermaid-plugin@11/plugin/mermaid/mermaid.js"></script>'
-  - '<script src="$revealjs-url$/plugin/highlight/highlight.js"></script>'
-  - '<link rel="stylesheet" href="$revealjs-url$/plugin/highlight/zenburn.css">'
-  - '<link rel="stylesheet" href="_static/custom.css">'
 ---
 
 ## Utilizing FluxCD, Weaveworks TF-Controller and boring-registry
