@@ -1,0 +1,19 @@
+from: markdown+emoji
+to: revealjs
+
+standalone: true
+slide-level: 2
+template: ${.}/default.revealjs
+filters:
+  - ${.}/_filters/code-attributes.lua
+  - ${.}/_filters/fit-h1.lua
+  - ${.}/_filters/stretch-images.lua
+css:
+  - _static/custom.css
+
+variables:
+  height: 1200
+  width: 1920
+  hash: true
+  history: true
+  loop: true

@@ -5,3 +5,4 @@
 **/plan
 .terraform.lock.hcl
 terraform.tfstate*
+/pandoc/default.revealjs
