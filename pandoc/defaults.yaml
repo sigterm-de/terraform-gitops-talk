@@ -12,6 +12,7 @@ css:
   - _static/custom.css
 
 variables:
+  revealjs-url: "https://unpkg.com/reveal.js@^4"
   height: 1200
   width: 1920
   hash: true
